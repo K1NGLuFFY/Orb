@@ -390,7 +390,7 @@ const AdminDashboard = () => {
     reloadData();
   };
 
-  // Open Product Modal
+  // Open Product Modal for Edit
   const openProductEditModal = (product) => {
     setEditingProduct(product);
     setProductForm({
@@ -408,7 +408,25 @@ const AdminDashboard = () => {
     setIsProductModalOpen(true);
   };
 
-  // Save Product (Single)
+  // Open Product Modal for Add
+  const openProductAddModal = () => {
+    setEditingProduct(null);
+    setProductForm({
+      title: '',
+      category: 'Book',
+      creator: '',
+      description: '',
+      imageUrl: '',
+      genre: '',
+      releaseYear: new Date().getFullYear().toString(),
+      language: 'English',
+      price: '',
+      stock: ''
+    });
+    setIsProductModalOpen(true);
+  };
+
+  // Save/Create Product (Single)
   const handleProductEditSubmit = (e) => {
     e.preventDefault();
     const parsedPrice = parseFloat(productForm.price);
@@ -424,30 +442,54 @@ const AdminDashboard = () => {
     }
 
     const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const index = dbProducts.findIndex(p => p.id === editingProduct.id);
-    if (index === -1) {
-      showFeedback('Listing not found.', 'error');
-      return;
+
+    if (editingProduct) {
+      const index = dbProducts.findIndex(p => p.id === editingProduct.id);
+      if (index === -1) {
+        showFeedback('Listing not found.', 'error');
+        return;
+      }
+
+      const updated = {
+        ...dbProducts[index],
+        title: productForm.title,
+        category: productForm.category,
+        creator: productForm.creator,
+        description: productForm.description,
+        imageUrl: productForm.imageUrl,
+        genre: productForm.genre,
+        releaseYear: productForm.releaseYear,
+        language: productForm.language,
+        price: parsedPrice,
+        stock: parsedStock
+      };
+
+      dbProducts[index] = updated;
+    } else {
+      // Add new product listing
+      const newProduct = {
+        id: `prod-${productForm.category.toLowerCase()}-${Date.now()}`,
+        title: productForm.title,
+        category: productForm.category,
+        creator: productForm.creator,
+        description: productForm.description,
+        imageUrl: productForm.imageUrl,
+        genre: productForm.genre,
+        releaseYear: productForm.releaseYear,
+        language: productForm.language,
+        price: parsedPrice,
+        stock: parsedStock,
+        rating: 5.0,
+        sellerId: currentUser.id,
+        sellerName: currentUser.name,
+        createdAt: new Date().toISOString()
+      };
+      dbProducts.push(newProduct);
     }
 
-    const updated = {
-      ...dbProducts[index],
-      title: productForm.title,
-      category: productForm.category,
-      creator: productForm.creator,
-      description: productForm.description,
-      imageUrl: productForm.imageUrl,
-      genre: productForm.genre,
-      releaseYear: productForm.releaseYear,
-      language: productForm.language,
-      price: parsedPrice,
-      stock: parsedStock
-    };
-
-    dbProducts[index] = updated;
     try {
       storageHelper.saveProducts(dbProducts, currentUser);
-      showFeedback(`Product "${updated.title}" catalog attributes updated.`);
+      showFeedback(editingProduct ? `Product "${productForm.title}" catalog attributes updated.` : `Product "${productForm.title}" successfully added to the catalog.`);
       setIsProductModalOpen(false);
       reloadData();
     } catch (error) {
@@ -827,10 +869,30 @@ const AdminDashboard = () => {
 
       {/* PRODUCTS TAB - Django Admin Layout */}
       {activeTab === 'products' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
-          
-          {/* Main Action + Table block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Sub Header with Add Button */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.25rem', textTransform: 'uppercase', margin: 0, letterSpacing: '0.05em' }}>
+                Catalog Product Database
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                Create new listings or execute batch modifications on existing physical media records.
+              </p>
+            </div>
+            <button 
+              onClick={openProductAddModal} 
+              className="btn btn-primary"
+              style={{ padding: '0.6rem 1.5rem', fontSize: '0.85rem', fontWeight: 'bold' }}
+            >
+              + Add New Product
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
+            
+            {/* Main Action + Table block */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
             {/* Batch Action header */}
             <div style={{
@@ -1088,6 +1150,7 @@ const AdminDashboard = () => {
 
           </aside>
 
+        </div>
         </div>
       )}
 
@@ -1372,7 +1435,7 @@ const AdminDashboard = () => {
           }}>
             <div style={{ display: 'flex', justifyContext: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.5rem', color: 'var(--signal)', margin: 0 }}>
-                ADMIN PRODUCT CONTROL
+                {editingProduct ? 'ADMIN PRODUCT CONTROL (EDIT)' : 'ADMIN PRODUCT CONTROL (ADD)'}
               </h2>
               <button onClick={() => setIsProductModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
             </div>
@@ -1501,7 +1564,9 @@ const AdminDashboard = () => {
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem' }}>
                 <button type="button" onClick={() => setIsProductModalOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Product (Admin)</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                  {editingProduct ? 'Save Product (Admin)' : 'Create Product (Admin)'}
+                </button>
               </div>
             </form>
           </div>

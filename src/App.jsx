@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { ToastProvider } from './context/ToastContext';
 
 // Protected Route Guard
 import ProtectedRoute from './components/Common/ProtectedRoute';
@@ -46,7 +47,8 @@ const DashboardRedirect = () => {
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
+      <ToastProvider>
+        <CartProvider>
         <Router>
           <Routes>
             {/* Public Routes */}
@@ -118,6 +120,7 @@ function App() {
           </Routes>
         </Router>
       </CartProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }

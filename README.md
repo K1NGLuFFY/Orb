@@ -1,6 +1,6 @@
 # Orbit — Physical Media Marketplace
 
-Orbit is a frontend-only React marketplace for buying and selling rare print and physical media, including **Anime releases, Manga volumes, Books, Comics, and Movies**. 
+Orbit is a frontend-only React marketplace for buying and selling rare print and physical media, including **Anime releases, Manga volumes, Books, Comics, and Movies**.
 
 Built with React and Vite, the application runs entirely client-side. All catalog listings, user credentials, orders, wishlists, and site preferences are stored and maintained locally in the browser's `localStorage` namespace.
 

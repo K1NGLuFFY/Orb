@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300">
+  <rect width="100%" height="100%" fill="#161819"/>
+  <!-- Outline border -->
+  <rect x="8" y="8" width="184" height="284" fill="none" stroke="#25282A" stroke-width="1.5" rx="4"/>
+  <!-- Open Book icon -->
+  <path d="M 60 145 C 80 135, 95 140, 100 145 C 105 140, 120 135, 140 145 L 140 115 C 120 105, 105 110, 100 115 C 95 110, 80 105, 60 115 Z" fill="none" stroke="#45484A" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="100" y1="115" x2="100" y2="145" stroke="#45484A" stroke-width="3"/>
+  <!-- Text Label -->
+  <text x="50%" y="195" text-anchor="middle" font-family="monospace" font-size="9" fill="#65686A" letter-spacing="2">NO BOOK COVER</text>
+  <text x="50%" y="210" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#45484A">ORBIT CATALOG</text>
+</svg>

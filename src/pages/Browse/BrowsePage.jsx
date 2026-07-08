@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { readStorage, KEYS } from '../../utils/localStorage';
-import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/Common/ProductCard';
 import Navbar from '../../components/Common/Navbar';
+import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
+import { getPopularAnime, searchAnime } from '../../services/jikanApi';
+import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -13,266 +15,270 @@ const categoryColors = {
   Movie: 'var(--spine-movies)'
 };
 
+const SkeletonCard = () => (
+  <div style={{
+    background: 'var(--panel)',
+    borderRadius: '6px',
+    border: '1px solid var(--hairline)',
+    height: '340px',
+    maxWidth: '200px',
+    width: '100%',
+    margin: '0 auto',
+    padding: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    opacity: 0.6,
+    animation: 'pulse 1.5s infinite ease-in-out'
+  }}>
+    <div style={{ background: 'var(--panel-raised)', width: '100%', height: '180px', borderRadius: '4px' }} />
+    <div style={{ background: 'var(--panel-raised)', width: '60%', height: '12px', borderRadius: '2px' }} />
+    <div style={{ background: 'var(--panel-raised)', width: '90%', height: '20px', borderRadius: '2px' }} />
+    <div style={{ background: 'var(--panel-raised)', width: '40%', height: '12px', borderRadius: '2px' }} />
+    <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', marginTop: 'auto' }}>
+      <div style={{ background: 'var(--panel-raised)', width: '30%', height: '15px', borderRadius: '2px' }} />
+      <div style={{ background: 'var(--panel-raised)', width: '40%', height: '10px', borderRadius: '2px' }} />
+    </div>
+  </div>
+);
+
 const BrowsePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { currentUser } = useAuth();
   
-  // Products source of truth
-  const [products, setProducts] = useState([]);
-  
-  // Filter and search states
+  const [localProducts, setLocalProducts] = useState([]);
+  const [popularProducts, setPopularProducts] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest'); // newest | oldest | price-asc | price-desc | rating
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
 
-  // Load products
+  const [loadingPopular, setLoadingPopular] = useState(false);
+  const [moviesBooksSearching, setMoviesBooksSearching] = useState(false);
+  const [animeSearching, setAnimeSearching] = useState(false);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    setProducts(dbProducts);
-
-    // Sync categories from URL params if updated
     const catParam = searchParams.get('category');
     if (catParam) setSelectedCategory(catParam);
-
     const sortParam = searchParams.get('sort');
     if (sortParam) setSortBy(sortParam);
   }, [searchParams]);
 
-  // Extract unique genres across catalog
-  const genres = ['All', ...new Set(products.map(p => p.genre.split(',')).flat().map(g => g.trim()))];
+  useEffect(() => {
+    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
+    const isSeedAnime = p => p.id.startsWith('prod-anime-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
+    const isSeedMovie = p => p.id.startsWith('prod-movie-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
+    const isSeedBook = p => p.id.startsWith('prod-book-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
+    
+    const preservedLocal = dbProducts.filter(p => !isSeedAnime(p) && !isSeedMovie(p) && !isSeedBook(p));
+    setLocalProducts(preservedLocal);
 
-  // Apply filters and sorting
-  const filteredProducts = products.filter(product => {
-    // Search filter (title, creator, genre, category)
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = 
-      product.title.toLowerCase().includes(query) ||
-      product.creator.toLowerCase().includes(query) ||
-      product.genre.toLowerCase().includes(query) ||
-      product.category.toLowerCase().includes(query);
+    let active = true;
+    const controller = new AbortController();
 
-    // Category filter
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-
-    // Genre filter
-    const matchesGenre = selectedGenre === 'All' || product.genre.includes(selectedGenre);
-
-    // Price filter
-    const matchesPrice = product.price >= priceRange.min && product.price <= priceRange.max;
-
-    // Stock filter
-    const matchesStock = !inStockOnly || product.stock > 0;
-
-    return matchesSearch && matchesCategory && matchesGenre && matchesPrice && matchesStock;
-  }).sort((a, b) => {
-    if (sortBy === 'newest') {
-      return new Date(b.createdAt) - new Date(a.createdAt);
+    async function loadPopularData() {
+      setLoadingPopular(true);
+      setError(null);
+      const results = await Promise.allSettled([
+        getPopularMovies(controller.signal),
+        getPopularAnime(controller.signal),
+        getPopularBooks(controller.signal)
+      ]);
+      if (!active) return;
+      const popular = [];
+      let successCount = 0;
+      results.forEach((res) => {
+        if (res.status === 'fulfilled') {
+          popular.push(...res.value);
+          successCount++;
+        }
+      });
+      setPopularProducts(popular);
+      setLoadingPopular(false);
+      if (successCount === 0) setError("All live catalog services failed to load. Falling back to local data only.");
     }
-    if (sortBy === 'oldest') {
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    }
-    if (sortBy === 'price-asc') {
-      return a.price - b.price;
-    }
-    if (sortBy === 'price-desc') {
-      return b.price - a.price;
-    }
-    if (sortBy === 'rating') {
-      return b.rating - a.rating;
-    }
-    return 0;
-  });
+    loadPopularData();
+    return () => { active = false; controller.abort(); };
+  }, []);
 
-  // Handle category selector click
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setMoviesBooksSearching(false);
+      setAnimeSearching(false);
+      return;
+    }
+    setMoviesBooksSearching(true);
+    setAnimeSearching(true);
+    setError(null);
+    const movieBookController = new AbortController();
+    const animeController = new AbortController();
+    const movieBookTimer = setTimeout(async () => {
+      try {
+        const [movies, books] = await Promise.all([
+          searchMovies(searchQuery, movieBookController.signal),
+          searchBooks(searchQuery, movieBookController.signal)
+        ]);
+        setSearchResults(prev => {
+          const nonMovieBook = prev.filter(p => p.category !== 'Movie' && p.category !== 'Book');
+          return [...nonMovieBook, ...movies, ...books];
+        });
+      } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+      finally { setMoviesBooksSearching(false); }
+    }, 450);
+    const animeTimer = setTimeout(async () => {
+      try {
+        const anime = await searchAnime(searchQuery, animeController.signal);
+        setSearchResults(prev => {
+          const nonAnime = prev.filter(p => p.category !== 'Anime');
+          return [...nonAnime, ...anime];
+        });
+      } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+      finally { setAnimeSearching(false); }
+    }, 600);
+    return () => { clearTimeout(movieBookTimer); clearTimeout(animeTimer); movieBookController.abort(); animeController.abort(); };
+  }, [searchQuery]);
+
+  // Deep text normalization: lowercase, strip accents (NFD), remove diacritics
+  const normalizeText = (str) =>
+    (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  // Build the searchable product corpus from API data + local products (no featured bias)
+  const combinedProducts = useMemo(() => {
+    const normalizedQuery = normalizeText(searchQuery);
+
+    // When there's an active search query, use only API search results + matching local items
+    // When there's NO query, show popular (API) items + all local items (browsing mode)
+    if (!normalizedQuery) {
+      // Deduplicate by id, local products take precedence
+      const idSet = new Set(localProducts.map(p => p.id));
+      const deduped = [...localProducts, ...popularProducts.filter(p => !idSet.has(p.id))];
+      return deduped;
+    }
+
+    // Build a combined searchable string from all relevant fields per product
+    const matchesQuery = (product) => {
+      const fields = [
+        product.title,
+        product.creator,
+        product.genre,
+        product.category,
+        product.description,
+      ];
+      const combined = normalizeText(fields.join(' '));
+      return combined.includes(normalizedQuery);
+    };
+
+    // Filter local products against the query (no hardcoded featured list)
+    const matchingLocal = localProducts.filter(matchesQuery);
+
+    // API search results are already query-relevant but also run them through
+    // client-side normalization for consistency
+    const matchingApi = searchResults.filter(matchesQuery);
+
+    // Deduplicate by id, local takes precedence
+    const idSet = new Set(matchingLocal.map(p => p.id));
+    return [...matchingLocal, ...matchingApi.filter(p => !idSet.has(p.id))];
+  }, [searchQuery, localProducts, popularProducts, searchResults]);
+
+  const genres = useMemo(() =>
+    ['All', ...new Set(combinedProducts.map(p => (p.genre ? p.genre.split(',') : [])).flat().map(g => g.trim()).filter(Boolean))],
+    [combinedProducts]
+  );
+
+  const filteredProducts = useMemo(() => {
+    return combinedProducts.filter(product => {
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesGenre = selectedGenre === 'All' || (product.genre && product.genre.includes(selectedGenre));
+      const matchesPrice = product.price >= priceRange.min && product.price <= priceRange.max;
+      const matchesStock = !inStockOnly || product.stock > 0;
+      return matchesCategory && matchesGenre && matchesPrice && matchesStock;
+    }).sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'price-asc') return (a.price || 0) - (b.price || 0);
+      if (sortBy === 'price-desc') return (b.price || 0) - (a.price || 0);
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      return 0;
+    });
+  }, [combinedProducts, selectedCategory, selectedGenre, priceRange, inStockOnly, sortBy]);
+
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
-    // Sync with URL params
     const newParams = new URLSearchParams(searchParams);
-    if (category === 'All') {
-      newParams.delete('category');
-    } else {
-      newParams.set('category', category);
-    }
+    if (category === 'All') newParams.delete('category'); else newParams.set('category', category);
     setSearchParams(newParams);
   };
 
-  // Sync search input with URL params
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
     const newParams = new URLSearchParams(searchParams);
-    if (val === '') {
-      newParams.delete('q');
-    } else {
-      newParams.set('q', val);
-    }
+    if (val === '') newParams.delete('q'); else newParams.set('q', val);
     setSearchParams(newParams);
   };
 
+  const isSearching = moviesBooksSearching || animeSearching;
+
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Navbar */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 0.3; }
+          50% { opacity: 0.7; }
+          100% { opacity: 0.3; }
+        }
+      `}</style>
       <Navbar />
-
-      {/* Main Browse shelf layout */}
-      <div style={{
-        flex: 1,
-        maxWidth: '1200px',
-        width: '100%',
-        margin: '0 auto',
-        padding: '2rem',
-        display: 'grid',
-        gridTemplateColumns: '260px 1fr',
-        gap: '2.5rem',
-      }} className="browse-layout">
-        
-        {/* LEFT COLUMN: FILTERS & NAVIGATION */}
-        <aside style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2rem'
-        }}>
+      <div style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '2rem', display: 'grid', gridTemplateColumns: '260px 1fr', gap: '2.5rem' }} className="browse-layout">
+        <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>
-              Categories
-            </h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Categories</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {['All', 'Anime', 'Manga', 'Book', 'Comic', 'Movie'].map(cat => {
                 const isSelected = selectedCategory === cat;
-                const dotColor = categoryColors[cat] || 'var(--signal)';
                 return (
-                  <button
-                    key={cat}
-                    onClick={() => handleCategorySelect(cat)}
-                    style={{
-                      textAlign: 'left',
-                      background: isSelected ? 'var(--panel-raised)' : 'transparent',
-                      border: 'none',
-                      color: isSelected ? 'var(--text)' : 'var(--text-muted)',
-                      fontFamily: 'var(--font-body)',
-                      fontWeight: isSelected ? 'bold' : 'normal',
-                      padding: '0.6rem 0.85rem',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      transition: 'background-color 0.2s'
-                    }}
-                  >
-                    <span style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: dotColor,
-                      opacity: isSelected ? 1 : 0.4
-                    }} />
+                  <button key={cat} onClick={() => handleCategorySelect(cat)} style={{ textAlign: 'left', background: isSelected ? 'var(--panel-raised)' : 'transparent', border: 'none', color: isSelected ? 'var(--text)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontWeight: isSelected ? 'bold' : 'normal', padding: '0.6rem 0.85rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: categoryColors[cat] || 'var(--signal)', opacity: isSelected ? 1 : 0.4 }} />
                     {cat === 'Book' ? 'Books' : cat === 'Comic' ? 'Comics' : cat === 'Movie' ? 'Movies' : cat}
                   </button>
                 );
               })}
             </div>
           </div>
-
           <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>
-              Filter By
-            </h3>
-            
-            {/* Genre Select */}
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Filter By</h3>
             <div className="form-group">
               <label className="form-label">Genre</label>
-              <select 
-                value={selectedGenre} 
-                onChange={(e) => setSelectedGenre(e.target.value)}
-                className="form-select"
-                style={{ cursor: 'pointer' }}
-              >
-                {genres.map(genre => (
-                  <option key={genre} value={genre}>{genre}</option>
-                ))}
+              <select value={selectedGenre} onChange={(e) => setSelectedGenre(e.target.value)} className="form-select" style={{ cursor: 'pointer' }}>
+                {genres.map(genre => <option key={genre} value={genre}>{genre}</option>)}
               </select>
             </div>
-
-            {/* Price Filter */}
             <div className="form-group" style={{ marginTop: '1rem' }}>
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Max Price</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>${priceRange.max}</span>
               </label>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={priceRange.max}
-                onChange={(e) => setPriceRange({ ...priceRange, max: parseFloat(e.target.value) })}
-                style={{ 
-                  width: '100%', 
-                  accentColor: 'var(--signal)',
-                  background: 'var(--panel)',
-                  cursor: 'pointer'
-                }}
-              />
+              <input type="range" min="0" max="100" value={priceRange.max} onChange={(e) => setPriceRange({ ...priceRange, max: parseFloat(e.target.value) })} style={{ width: '100%', accentColor: 'var(--signal)', background: 'var(--panel)', cursor: 'pointer' }} />
             </div>
-
-            {/* Availability */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1rem', cursor: 'pointer' }}>
-              <input 
-                type="checkbox" 
-                id="stock-check"
-                checked={inStockOnly}
-                onChange={(e) => setInStockOnly(e.target.checked)}
-                style={{ accentColor: 'var(--signal)', width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <label htmlFor="stock-check" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                In Stock Only
-              </label>
+              <input type="checkbox" id="stock-check" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} style={{ accentColor: 'var(--signal)', width: '16px', height: '16px', cursor: 'pointer' }} />
+              <label htmlFor="stock-check" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>In Stock Only</label>
             </div>
           </div>
         </aside>
-
-        {/* RIGHT COLUMN: SEARCH & CATALOG GRID */}
         <main>
-          {/* Top Search & Sort Panel */}
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            marginBottom: '2rem',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-          }}>
-            {/* Search Input */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
-              <input 
-                type="text" 
-                placeholder="Search titles, creators, genres..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="form-input"
-                style={{
-                  paddingLeft: '1rem',
-                  fontSize: '1rem'
-                }}
-              />
+              <input type="text" placeholder="Search titles, creators, genres..." value={searchQuery} onChange={handleSearchChange} className="form-input" style={{ paddingLeft: '1rem', fontSize: '1rem' }} />
+              {isSearching && <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--signal)' }}>FETCHING...</div>}
             </div>
-
-            {/* Sort Select */}
             <div style={{ width: '180px' }}>
-              <select 
-                value={sortBy} 
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.set('sort', e.target.value);
-                  setSearchParams(newParams);
-                }}
-                className="form-select"
-                style={{ cursor: 'pointer' }}
-              >
+              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); const newParams = new URLSearchParams(searchParams); newParams.set('sort', e.target.value); setSearchParams(newParams); }} className="form-select" style={{ cursor: 'pointer' }}>
                 <option value="newest">Sort: Newest</option>
                 <option value="oldest">Sort: Oldest</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -281,67 +287,33 @@ const BrowsePage = () => {
               </select>
             </div>
           </div>
-
-          {/* Results count */}
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.8rem',
-            color: 'var(--text-muted)',
-            marginBottom: '1rem',
-            textTransform: 'uppercase'
-          }}>
-            Showing {filteredProducts.length} of {products.length} catalog items
+          {error && (
+            <div style={{ backgroundColor: 'rgba(255, 77, 109, 0.1)', border: '1px solid var(--spine-anime)', color: 'var(--spine-anime)', padding: '1rem', borderRadius: '4px', marginBottom: '1.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>⚠️ {error}</span>
+              <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'var(--spine-anime)', cursor: 'pointer', fontSize: '1.1rem' }}>&times;</button>
+            </div>
+          )}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase' }}>
+            {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} of ${combinedProducts.length} catalog items`}
           </div>
-
-          {/* Shelf Grid */}
-          {filteredProducts.length > 0 ? (
-            <div 
-              className="catalog-grid"
-              style={{
-                backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), var(--hairline) calc(100% - 2px))',
-                backgroundSize: '100% 390px', /* Shelving effect line */
-                padding: '12px 0 24px 0' /* Adjust padding to fit page structure perfectly */
-              }}
-            >
-              {filteredProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+          {loadingPopular ? (
+            <div className="catalog-grid" style={{ padding: '12px 0 24px 0' }}>
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <div className="catalog-grid" style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), var(--hairline) calc(100% - 2px))', backgroundSize: '100% 390px', padding: '12px 0 24px 0' }}>
+              {filteredProducts.map(product => <ProductCard key={product.id} product={product} />)}
             </div>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '6rem 2rem',
-              background: 'var(--panel)',
-              border: '1px dashed var(--hairline)',
-              borderRadius: '6px',
-              marginTop: '1rem'
-            }}>
-              <p style={{
-                color: 'var(--text)',
-                fontSize: '1.15rem',
-                marginBottom: '0.5rem',
-                fontFamily: 'var(--font-body)'
-              }}>
-                Nothing matches '{searchQuery || selectedCategory}'. Try a different title, creator, or genre.
-              </p>
+            <div style={{ textAlign: 'center', padding: '6rem 2rem', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px', marginTop: '1rem' }}>
+              <p style={{ color: 'var(--text)', fontSize: '1.15rem', marginBottom: '0.5rem', fontFamily: 'var(--font-body)' }}>Nothing matches '{searchQuery || selectedCategory}'. Try a different search.</p>
             </div>
           )}
         </main>
       </div>
-
-      {/* Footer */}
-      <footer style={{
-        padding: '2rem',
-        borderTop: '1px solid var(--hairline)',
-        backgroundColor: 'var(--panel)',
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        color: 'var(--text-muted)',
-        marginTop: 'auto'
-      }}>
-        <span>&copy; 2026 Orbit Catalog. Simulated client-side transaction framework.</span>
+      <footer style={{ padding: '2rem', borderTop: '1px solid var(--hairline)', backgroundColor: 'var(--panel)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'auto' }}>
+        <span>&copy; 2026 Orbit Catalog. Live API Integration & Simulated local transaction framework.</span>
       </footer>
-
     </div>
   );
 };

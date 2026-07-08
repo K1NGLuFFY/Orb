@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { readStorage, KEYS } from '../../utils/localStorage';
+import { readStorage, KEYS, ensureProductRegistered } from '../../utils/localStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../../components/Common/Navbar';
+import { getMovieDetails } from '../../services/tmdbApi';
+import { getAnimeDetails } from '../../services/jikanApi';
+import { getBookDetails } from '../../services/googleBooksApi';
+import { FALLBACK_IMAGE } from '../../components/Common/ProductCard';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -33,10 +37,57 @@ const ProductDetailsPage = () => {
   const [feedbackMessage, setFeedbackMessage] = useState({ text: '', type: '' }); // success | error
 
   useEffect(() => {
-    const products = readStorage(KEYS.PRODUCTS) || [];
-    const foundProduct = products.find(p => p.id === id);
-    setProduct(foundProduct);
-    setLoading(false);
+    let active = true;
+    const controller = new AbortController();
+
+    async function loadProduct() {
+      setLoading(true);
+      try {
+        const localProducts = readStorage(KEYS.PRODUCTS) || [];
+        const found = localProducts.find(p => p.id === id);
+        
+        if (found) {
+          if (active) {
+            setProduct(found);
+          }
+          return;
+        }
+
+        // If not in local products, and starts with api-, fetch it live
+        if (id.startsWith('api-movie-')) {
+          const apiProduct = await getMovieDetails(id, controller.signal);
+          if (active && apiProduct) {
+            setProduct(apiProduct);
+            ensureProductRegistered(apiProduct);
+          }
+        } else if (id.startsWith('api-anime-')) {
+          const apiProduct = await getAnimeDetails(id, controller.signal);
+          if (active && apiProduct) {
+            setProduct(apiProduct);
+            ensureProductRegistered(apiProduct);
+          }
+        } else if (id.startsWith('api-book-')) {
+          const apiProduct = await getBookDetails(id, controller.signal);
+          if (active && apiProduct) {
+            setProduct(apiProduct);
+            ensureProductRegistered(apiProduct);
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to load dynamic product details:', err);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadProduct();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [id]);
 
   if (loading) {
@@ -186,7 +237,7 @@ const ProductDetailsPage = () => {
           }} />
 
           <img 
-            src={product.imageUrl} 
+            src={product.imageUrl || FALLBACK_IMAGE} 
             alt={product.title} 
             style={{
               width: '100%',
@@ -194,6 +245,11 @@ const ProductDetailsPage = () => {
               paddingLeft: '8px',
               maxHeight: '550px',
               objectFit: 'cover'
+            }}
+            onError={(e) => {
+              if (e.target.src !== FALLBACK_IMAGE) {
+                e.target.src = FALLBACK_IMAGE;
+              }
             }}
           />
         </div>

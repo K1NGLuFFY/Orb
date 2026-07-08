@@ -145,3 +145,17 @@ export const initializeDB = (forceReset = false) => {
   }
 };
 
+/**
+ * Ensures a dynamically fetched live product metadata is cached inside standard localStorage
+ * so that offline-only features (cart, wishlist, invoices) can resolve its details.
+ */
+export const ensureProductRegistered = (product) => {
+  if (!product) return;
+  const products = readStorage(KEYS.PRODUCTS) || [];
+  if (!products.some(p => p.id === product.id)) {
+    products.push(product);
+    writeStorage(KEYS.PRODUCTS, products);
+  }
+};
+
+

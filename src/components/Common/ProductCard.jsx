@@ -1,5 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import moviePlaceholder from '../../assets/placeholders/movie.svg';
+import bookPlaceholder from '../../assets/placeholders/book.svg';
+import comicPlaceholder from '../../assets/placeholders/comic.svg';
+import animePlaceholder from '../../assets/placeholders/anime.svg';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -9,15 +13,24 @@ const categoryColors = {
   Movie: 'var(--spine-movies)'
 };
 
+const placeholders = {
+  Movie: moviePlaceholder,
+  Anime: animePlaceholder,
+  Book: bookPlaceholder,
+  Manga: bookPlaceholder,
+  Comic: comicPlaceholder
+};
+
+export const FALLBACK_IMAGE = bookPlaceholder;
+
 /**
  * ProductCard component with Left Spine Tab.
- * Supports a custom variant for Bestseller lists where badges are overlaid on the cover.
- * 
- * @param {Object} product The product object
- * @param {boolean} overlayBadges If true, overlays rating/price on the cover (for Bestsellers row)
+ * Formatted as a Netflix-style poster card that lifts and glows on hover.
  */
 const ProductCard = ({ product, overlayBadges = false }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const spineColor = categoryColors[product.category] || 'var(--text-muted)';
+  const fallbackSrc = placeholders[product.category] || bookPlaceholder;
 
   return (
     <Link 
@@ -27,27 +40,25 @@ const ProductCard = ({ product, overlayBadges = false }) => {
         flexDirection: 'column',
         background: 'var(--panel)',
         borderRadius: '6px',
-        overflow: 'hidden',
+        overflow: 'hidden', // Contained bounds prevent title text spill
         border: '1px solid var(--hairline)',
         position: 'relative',
         textDecoration: 'none',
         color: 'var(--text)',
-        transition: 'border-color 0.2s ease, transform 0.2s ease',
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
         height: '100%',
-        minHeight: '340px',
-        maxWidth: '200px',
-        width: '100%',
-        margin: '0 auto'
+        minHeight: '290px',
+        maxWidth: '160px',
+        width: '160px',
+        margin: '0 auto',
+        transform: isHovered ? 'translateY(-6px) scale(1.03)' : 'translateY(0) scale(1)',
+        transformOrigin: 'center',
+        boxShadow: isHovered ? '0 12px 24px rgba(0,0,0,0.5)' : 'none',
+        zIndex: isHovered ? 10 : 1
       }}
       className="product-card"
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--signal)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--hairline)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* 6px Left Spine Tab */}
       <div style={{
@@ -69,7 +80,7 @@ const ProductCard = ({ product, overlayBadges = false }) => {
         paddingLeft: '6px' /* Offset from left spine tab */
       }}>
         <img 
-          src={product.imageUrl} 
+          src={product.imageUrl || fallbackSrc} 
           alt={product.title}
           className="product-card-image"
           style={{
@@ -80,6 +91,11 @@ const ProductCard = ({ product, overlayBadges = false }) => {
             height: 'auto'
           }}
           loading="lazy"
+          onError={(e) => {
+            if (e.target.src !== fallbackSrc) {
+              e.target.src = fallbackSrc;
+            }
+          }}
         />
 
         {/* Bestseller Overlaid Badges */}
@@ -144,8 +160,8 @@ const ProductCard = ({ product, overlayBadges = false }) => {
             <span style={{
               border: '1px solid var(--signal)',
               color: 'var(--signal)',
-              padding: '4px 12px',
-              fontSize: '0.75rem',
+              padding: '4px 8px',
+              fontSize: '0.65rem',
               fontWeight: 'bold',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
@@ -160,7 +176,7 @@ const ProductCard = ({ product, overlayBadges = false }) => {
 
       {/* Info Block */}
       <div style={{
-        padding: '1rem',
+        padding: '0.75rem',
         display: 'flex',
         flexDirection: 'column',
         flexGrow: 1,
@@ -170,19 +186,19 @@ const ProductCard = ({ product, overlayBadges = false }) => {
         <div>
           {/* Category Label */}
           <span style={{
-            fontSize: '0.7rem',
+            fontSize: '0.65rem',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             color: spineColor,
             fontWeight: '600',
             display: 'block',
-            marginBottom: '0.25rem'
+            marginBottom: '0.2rem'
           }}>
             {product.category}
           </span>
-          {/* Title */}
+          {/* Title - Static alignment inside poster card bounds */}
           <h4 style={{
-            fontSize: '0.95rem',
+            fontSize: '0.85rem',
             fontWeight: 'bold',
             fontFamily: 'var(--font-body)',
             lineHeight: '1.25',
@@ -198,27 +214,30 @@ const ProductCard = ({ product, overlayBadges = false }) => {
           </h4>
           {/* Creator Label / Name */}
           <span style={{
-            fontSize: '0.75rem',
+            fontSize: '0.7rem',
             color: 'var(--text-muted)',
-            display: 'block'
+            display: 'block',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden'
           }}>
             {product.creator}
           </span>
         </div>
 
-        {/* Below-cover Price/Stock (if not fanned bestseller variant) */}
+        {/* Below-cover Price/Stock (if not bestseller variant with overlays) */}
         {!overlayBadges && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: '0.75rem',
-            paddingTop: '0.5rem',
+            marginTop: '0.5rem',
+            paddingTop: '0.4rem',
             borderTop: '1px solid var(--hairline)'
           }}>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '1.05rem',
+              fontSize: '0.95rem',
               color: 'var(--signal)',
               fontWeight: 'bold'
             }}>
@@ -226,10 +245,10 @@ const ProductCard = ({ product, overlayBadges = false }) => {
             </span>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
+              fontSize: '0.65rem',
               color: product.stock > 0 ? 'var(--text-muted)' : '#FF4D6D'
             }}>
-              {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+              {product.stock > 0 ? `${product.stock} left` : 'Out'}
             </span>
           </div>
         )}

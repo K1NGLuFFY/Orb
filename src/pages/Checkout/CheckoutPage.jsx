@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { readStorage, writeStorage, KEYS } from '../../utils/localStorage';
+import { useToast } from '../../context/ToastContext';
 
 const CheckoutPage = () => {
   const { currentUser } = useAuth();
   const { cart, clearCart } = useCart();
+  const { showToast } = useToast();
 
   // Lifecycle states
   const [checkoutStep, setCheckoutStep] = useState('form'); // form | processing | success | error
@@ -134,6 +136,7 @@ const CheckoutPage = () => {
 
         // 6. Transition
         setCheckoutStep('success');
+        showToast('Simulated Transaction Successful! Order Invoice Generated.', 'success');
       } catch (err) {
         console.error(err);
         setCheckoutStep('form');
