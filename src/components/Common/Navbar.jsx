@@ -43,7 +43,6 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
             width: '44px',
             height: '44px',
             padding: 0,
-            display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
