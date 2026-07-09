@@ -1,8 +1,8 @@
 # Orbit — Physical Media Marketplace
 
-Orbit is a frontend-only React marketplace for buying and selling rare print and physical media, including **Anime releases, Manga volumes, Books, Comics, and Movies**.
+Orbit is a React physical-media marketplace for browsing, buying, and selling print and physical media (including **Anime releases, Manga volumes, Books, Comics, and Movies**).
 
-Built with React and Vite, the application runs entirely client-side. All catalog listings, user credentials, orders, wishlists, and site preferences are stored and maintained locally in the browser's `localStorage` namespace.
+The application is integrated with **Supabase** for user authentication, postgres database storage, and realtime stock synchronization.
 
 ---
 
@@ -24,29 +24,37 @@ This application departs from standard e-commerce grid styles, taking aesthetic 
 
 ---
 
-## 🔐 Simulated Roster Credentials
+## 🔐 Authentication & Roles
 
-To test the multi-role simulation, you can log in directly using the quick-autofill options on the Login page or insert the following credentials manually:
+Orbit uses **Supabase Auth** to manage user accounts and metadata. The database defines four main user roles, each with RLS (Row-Level Security) policies:
+1. **Admin:** Manage global system settings (allow registrations, ticker message), moderation, announcements, and catalog listings.
+2. **Staff:** Moderate profiles (lock/activate buyers and sellers) and moderate products.
+3. **Seller:** Manage own inventory, add new catalog listings, and view store earnings receipts.
+4. **Buyer:** Browse and search, build a wishlist, checkout shopping cart items, and view purchase receipts.
 
-| Profile Role | Email Address | Password | Privileges |
-|---|---|---|---|
-| **Admin** | `admin@orbit.com` | `admin123` | Control announcements, adjust registration settings, register/remove Staff, ban/lock users, edit or delete any product listing, reset database. |
-| **Staff** | `staff@orbit.com` | `staff123` | Lock/unlock Buyer or Seller profiles, delete violating product listings, review analytics. Cannot add Admin or delete Staff. |
-| **Seller** | `seller1@orbit.com` / `seller2@orbit.com` | `seller123` | Publish new products, edit/delete own products, track inventory, view store sale receipts. |
-| **Buyer** | `buyer1@orbit.com` / `buyer2@orbit.com` | `buyer123` | Search/filter, view items, manage shopping carts, add/remove wishlist, buy items, view receipts. |
+Users can self-register as **Buyer** or **Seller** via the Registration page.
 
 ---
 
-## ⚠️ Important Disclaimers
+## ⚙️ Setup & Configuration
 
-### 1. Simulated Authentication
-> [!NOTE]
-> Authentication is simulated using localStorage. Session state is persistent across browser refreshes but does not communicate with a remote server.
+To run Orbit locally with your own database:
 
-### 2. Password Hashing Practice
-> [!IMPORTANT]
-> Password hashing is simulated client-side using `bcryptjs` before items are stored in `localStorage` to reflect standard development practices, not as production-grade security.
+1. Create a `.env` file in the root directory:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+2. Configure the database schema using the SQL query editor on your Supabase dashboard (profiles, products, orders, cart_items, wishlist_items, announcements, and settings tables).
+3. Build and launch:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-### 3. API & Asset Attribution
+---
+
+## ⚠️ API & Asset Attribution
+
 > [!WARNING]
 > This product uses sample artwork references and seed attributes mapped from standard public lists. This product uses TMDB metadata but is not endorsed or certified by TMDB.

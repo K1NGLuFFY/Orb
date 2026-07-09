@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, KEYS } from '../../utils/localStorage';
 import Navbar from '../../components/Common/Navbar';
 
 const categoryColors = {
@@ -18,28 +17,10 @@ const CartPage = () => {
   const { currentUser } = useAuth();
   const { cart, updateQuantity, removeFromCart } = useCart();
   const [cartItems, setCartItems] = useState([]);
-  const [products, setProducts] = useState([]);
-
-  // Load products to hydrate cart info
+  // Sync cartItems whenever cart state changes
   useEffect(() => {
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    setProducts(dbProducts);
-  }, []);
-
-  // Hydrate cart items whenever cart or products change
-  useEffect(() => {
-    if (products.length > 0) {
-      const items = cart.map(item => {
-        const prod = products.find(p => p.id === item.productId);
-        if (!prod) return null;
-        return {
-          ...prod,
-          quantity: item.quantity
-        };
-      }).filter(Boolean);
-      setCartItems(items);
-    }
-  }, [cart, products]);
+    setCartItems(cart);
+  }, [cart]);
 
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -64,8 +45,9 @@ const CartPage = () => {
         flex: 1,
         maxWidth: '1000px',
         width: '100%',
-        margin: '3rem auto',
-        padding: '0 2rem'
+        margin: 'clamp(1.5rem, 4vh, 3rem) auto',
+        padding: '0 clamp(1rem, 4vw, 2rem)',
+        boxSizing: 'border-box'
       }}>
         
         {/* Title */}
@@ -79,12 +61,7 @@ const CartPage = () => {
         </div>
 
         {cartItems.length > 0 ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 320px',
-            gap: '2.5rem',
-            alignItems: 'start'
-          }} className="cart-grid">
+          <div style={{ alignItems: 'start' }} className="cart-grid">
             
             {/* 1. Items List */}
             <div style={{
@@ -97,15 +74,11 @@ const CartPage = () => {
                 return (
                   <div 
                     key={item.id}
+                    className="cart-item-row"
                     style={{
                       background: 'var(--panel)',
                       border: '1px solid var(--hairline)',
-                      borderRadius: '6px',
-                      padding: '1.25rem 1.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '1.5rem',
-                      position: 'relative'
+                      borderRadius: '6px'
                     }}
                   >
                     {/* Left Spine Tab */}
@@ -122,26 +95,20 @@ const CartPage = () => {
                     <img 
                       src={item.imageUrl} 
                       alt={item.title} 
-                      style={{
-                        width: '50px',
-                        height: '70px',
-                        objectFit: 'cover',
-                        borderRadius: '3px',
-                        border: '1px solid var(--hairline)',
-                        marginLeft: '4px'
-                      }}
+                      className="cart-item-image"
                     />
 
                     {/* Title & Creator */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                    <div className="cart-item-title-creator">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
                         {/* Colored spine dot */}
                         <span style={{
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
                           backgroundColor: dotColor,
-                          display: 'inline-block'
+                          display: 'inline-block',
+                          flexShrink: 0
                         }} />
                         <Link to={`/product/${item.id}`} style={{
                           fontWeight: 'bold',
@@ -150,21 +117,22 @@ const CartPage = () => {
                           textOverflow: 'ellipsis',
                           overflow: 'hidden',
                           whiteSpace: 'nowrap',
-                          display: 'block'
+                          display: 'block',
+                          maxWidth: 'calc(100vw - 120px)'
                         }}>
                           {item.title}
                         </Link>
                       </div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                         {item.creator} &bull; {item.category}
                       </span>
                     </div>
 
                     {/* Quantity Controls */}
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--hairline)', borderRadius: '4px', background: 'var(--panel-raised)' }}>
+                    <div className="cart-item-quantity">
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         -
                       </button>
@@ -174,14 +142,14 @@ const CartPage = () => {
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.stock}
-                        style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: item.quantity >= item.stock ? 'not-allowed' : 'pointer', opacity: item.quantity >= item.stock ? 0.3 : 1, fontSize: '0.85rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: item.quantity >= item.stock ? 'not-allowed' : 'pointer', opacity: item.quantity >= item.stock ? 0.3 : 1, fontSize: '0.85rem', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         +
                       </button>
                     </div>
 
                     {/* Subtotal (Mono font) */}
-                    <div style={{ width: '90px', textAlign: 'right' }}>
+                    <div className="cart-item-subtotal">
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '0.95rem', color: 'var(--signal)' }}>
                         ${(item.price * item.quantity).toFixed(2)}
                       </span>
@@ -190,13 +158,13 @@ const CartPage = () => {
                     {/* Remove button */}
                     <button 
                       onClick={() => removeFromCart(item.id)}
+                      className="cart-item-remove"
                       style={{
                         background: 'none',
                         border: 'none',
                         color: 'var(--text-muted)',
                         cursor: 'pointer',
                         fontSize: '1rem',
-                        padding: '0.25rem',
                         transition: 'color 0.2s'
                       }}
                       onMouseEnter={e => e.target.style.color = '#e63946'}

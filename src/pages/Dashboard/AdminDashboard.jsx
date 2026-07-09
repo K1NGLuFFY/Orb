@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, writeStorage, KEYS } from '../../utils/localStorage';
 import { storageHelper } from '../../utils/storageHelper';
-import { hashPassword } from '../../utils/crypto';
+import { supabase } from '../../lib/supabaseClient';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -72,15 +71,28 @@ const AdminDashboard = () => {
   });
 
   // Reload DB Helper
-  const reloadData = () => {
-    setUsers(storageHelper.getUsers(currentUser));
-    setProducts(storageHelper.getProducts(currentUser));
-    setOrders(readStorage(KEYS.ORDERS) || []);
-    setAnnouncements(readStorage(KEYS.ANNOUNCEMENTS) || []);
+  const reloadData = async () => {
+    try {
+      const [dbUsers, dbProducts, dbOrders, dbAnnouncements, sysSettings] = await Promise.all([
+        storageHelper.getUsers(),
+        storageHelper.getProducts(),
+        storageHelper.getOrders(),
+        storageHelper.getAnnouncements(),
+        storageHelper.getSettings().catch(() => ({}))
+      ]);
 
-    const sysSettings = readStorage(KEYS.SETTINGS) || {};
-    setTickerText(sysSettings.announcementTicker || '');
-    setRegistrationsOpen(sysSettings.allowNewRegistrations !== false);
+      setUsers(dbUsers);
+      setProducts(dbProducts);
+      setOrders(dbOrders);
+      setAnnouncements(dbAnnouncements);
+
+      if (sysSettings) {
+        setTickerText(sysSettings.announcement_ticker || '');
+        setRegistrationsOpen(sysSettings.allow_new_registrations !== false);
+      }
+    } catch (err) {
+      console.error('Failed to load admin dashboard data:', err);
+    }
 
     // Reset select sets
     setSelectedProductIds(new Set());
@@ -184,7 +196,7 @@ const AdminDashboard = () => {
   };
 
   // Batch action executions
-  const handleExecuteProductBatch = () => {
+  const handleExecuteProductBatch = async () => {
     if (selectedProductIds.size === 0) {
       showFeedback('No items selected.', 'error');
       return;
@@ -195,46 +207,39 @@ const AdminDashboard = () => {
       return;
     }
 
-    const allProducts = readStorage(KEYS.PRODUCTS) || [];
-    let updatedProducts = [...allProducts];
-
-    if (productBatchAction === 'delete') {
-      const confirmDelete = window.confirm(`Delete the ${selectedProductIds.size} selected item listings?`);
-      if (!confirmDelete) return;
-      updatedProducts = allProducts.filter(p => !selectedProductIds.has(p.id));
-    } else if (productBatchAction === 'restock_10') {
-      updatedProducts = allProducts.map(p => {
-        if (selectedProductIds.has(p.id)) {
-          return { ...p, stock: 10 };
-        }
-        return p;
-      });
-    } else if (productBatchAction === 'deplete_stock') {
-      updatedProducts = allProducts.map(p => {
-        if (selectedProductIds.has(p.id)) {
-          return { ...p, stock: 0 };
-        }
-        return p;
-      });
-    } else if (productBatchAction === 'markdown_50') {
-      updatedProducts = allProducts.map(p => {
-        if (selectedProductIds.has(p.id)) {
-          return { ...p, price: parseFloat((p.price * 0.5).toFixed(2)) };
-        }
-        return p;
-      });
-    }
-
     try {
-      storageHelper.saveProducts(updatedProducts, currentUser);
-      showFeedback(`Successfully updated ${selectedProductIds.size} listings.`);
-      reloadData();
-    } catch (error) {
-      showFeedback(error.message, 'error');
+      if (productBatchAction === 'delete') {
+        const confirmDelete = window.confirm(`Delete the ${selectedProductIds.size} selected item listings?`);
+        if (!confirmDelete) return;
+        await Promise.all(
+          Array.from(selectedProductIds).map(id => storageHelper.deleteProduct(id))
+        );
+      } else if (productBatchAction === 'restock_10') {
+        await Promise.all(
+          Array.from(selectedProductIds).map(id => storageHelper.updateProduct(id, { stock: 10 }))
+        );
+      } else if (productBatchAction === 'deplete_stock') {
+        await Promise.all(
+          Array.from(selectedProductIds).map(id => storageHelper.updateProduct(id, { stock: 0 }))
+        );
+      } else if (productBatchAction === 'markdown_50') {
+        await Promise.all(
+          Array.from(selectedProductIds).map(id => {
+            const p = products.find(prod => prod.id === id);
+            if (!p) return Promise.resolve();
+            const newPrice = parseFloat((p.price * 0.5).toFixed(2));
+            return storageHelper.updateProduct(id, { price: newPrice });
+          })
+        );
+      }
+      showFeedback(`Successfully executed batch action on ${selectedProductIds.size} listings.`);
+      await reloadData();
+    } catch (err) {
+      showFeedback(err.message, 'error');
     }
   };
 
-  const handleExecuteUserBatch = () => {
+  const handleExecuteUserBatch = async () => {
     if (selectedUserIds.size === 0) {
       showFeedback('No users selected.', 'error');
       return;
@@ -245,149 +250,118 @@ const AdminDashboard = () => {
       return;
     }
 
-    const allUsers = readStorage(KEYS.KEYS_USERS || KEYS.USERS) || [];
-    let updatedUsers = [...allUsers];
-
-    if (userBatchAction === 'delete') {
-      const confirmDelete = window.confirm(`Permanently remove ${selectedUserIds.size} user profiles?`);
-      if (!confirmDelete) return;
-      updatedUsers = allUsers.filter(u => !selectedUserIds.has(u.id));
-    } else if (userBatchAction === 'lock') {
-      updatedUsers = allUsers.map(u => {
-        if (selectedUserIds.has(u.id)) {
-          return { ...u, status: 'locked' };
-        }
-        return u;
-      });
-    } else if (userBatchAction === 'activate') {
-      updatedUsers = allUsers.map(u => {
-        if (selectedUserIds.has(u.id)) {
-          return { ...u, status: 'active' };
-        }
-        return u;
-      });
-    } else if (userBatchAction === 'suspend') {
-      updatedUsers = allUsers.map(u => {
-        if (selectedUserIds.has(u.id)) {
-          return { ...u, status: 'suspended' };
-        }
-        return u;
-      });
-    }
-
     try {
-      storageHelper.saveUsers(updatedUsers, currentUser);
+      if (userBatchAction === 'delete') {
+        const confirmDelete = window.confirm(`Permanently remove ${selectedUserIds.size} user profiles?`);
+        if (!confirmDelete) return;
+        await Promise.all(
+          Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { deleted_at: new Date().toISOString(), name: 'Deleted User' }))
+        );
+      } else {
+        const status = userBatchAction === 'lock' ? 'locked' : userBatchAction === 'suspend' ? 'suspended' : 'active';
+        await Promise.all(
+          Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { status }))
+        );
+      }
       showFeedback(`Successfully updated status for ${selectedUserIds.size} user profiles.`);
-      reloadData();
-    } catch (error) {
-      showFeedback(error.message, 'error');
+      await reloadData();
+    } catch (err) {
+      showFeedback(err.message, 'error');
     }
   };
 
-
-
   // Delete User (Single)
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this user?');
     if (!confirmDelete) return;
 
-    const dbUsers = readStorage(KEYS.USERS) || [];
-    const target = dbUsers.find(u => u.id === userId);
-    if (!target) return;
-
-    if (target.id === currentUser.id || target.role === 'Admin') {
+    if (userId === currentUser.id) {
       showFeedback('Access Denied: Protected profiles.', 'error');
       return;
     }
 
-    const filtered = dbUsers.filter(u => u.id !== userId);
     try {
-      storageHelper.saveUsers(filtered, currentUser);
-      reloadData();
-      showFeedback(`User account "${target.name}" deleted.`);
+      await storageHelper.updateUser(userId, { deleted_at: new Date().toISOString(), name: 'Deleted User' });
+      await reloadData();
+      showFeedback('User account soft deleted.');
     } catch (error) {
       showFeedback(error.message, 'error');
     }
   };
 
   // Enroll Staff Curator
-  const handleAddStaffSubmit = (e) => {
+  const handleAddStaffSubmit = async (e) => {
     e.preventDefault();
     if (!staffForm.name || !staffForm.email || !staffForm.password) {
       showFeedback('Please fill out all staff fields.', 'error');
       return;
     }
 
-    const dbUsers = readStorage(KEYS.USERS) || [];
-    const emailExists = dbUsers.some(u => u.email.toLowerCase() === staffForm.email.toLowerCase());
-    if (emailExists) {
-      showFeedback('This email address is already in use.', 'error');
-      return;
-    }
-
-    const newStaff = {
-      id: `user-staff-${Date.now()}`,
-      name: staffForm.name,
-      email: staffForm.email,
-      passwordHash: hashPassword(staffForm.password),
-      role: 'Staff',
-      status: 'active',
-      createdAt: new Date().toISOString()
-    };
-
-    dbUsers.push(newStaff);
     try {
-      storageHelper.saveUsers(dbUsers, currentUser);
-      showFeedback(`Curator "${newStaff.name}" successfully enrolled.`);
+      const { data, error } = await supabase.auth.signUp({
+        email: staffForm.email,
+        password: staffForm.password,
+        options: {
+          data: {
+            name: staffForm.name,
+            role: 'Staff'
+          }
+        }
+      });
+      if (error) throw new Error(error.message);
+      showFeedback(`Curator "${staffForm.name}" successfully enrolled.`);
       setStaffForm({ name: '', email: '', password: '' });
-      reloadData();
+      await reloadData();
     } catch (error) {
       showFeedback(error.message, 'error');
     }
   };
 
   // Publish Announcement
-  const handleAddAnnouncement = (e) => {
+  const handleAddAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementForm.title || !announcementForm.content) {
       showFeedback('Notice fields cannot be left empty.', 'error');
       return;
     }
 
-    const dbAnnouncements = readStorage(KEYS.ANNOUNCEMENTS) || [];
-    const newAnn = {
-      id: `ann-${Date.now()}`,
-      title: announcementForm.title,
-      content: announcementForm.content,
-      date: new Date().toISOString()
-    };
-
-    dbAnnouncements.unshift(newAnn);
-    writeStorage(KEYS.ANNOUNCEMENTS, dbAnnouncements);
-    showFeedback('Announcement bulletin notice updated.');
-    setAnnouncementForm({ title: '', content: '' });
-    reloadData();
+    try {
+      await storageHelper.insertAnnouncement({
+        title: announcementForm.title,
+        body: announcementForm.content
+      });
+      showFeedback('Announcement bulletin notice updated.');
+      setAnnouncementForm({ title: '', content: '' });
+      await reloadData();
+    } catch (err) {
+      showFeedback(err.message, 'error');
+    }
   };
 
   // Delete Announcement
-  const handleDeleteAnnouncement = (id) => {
-    const dbAnnouncements = readStorage(KEYS.ANNOUNCEMENTS) || [];
-    const filtered = dbAnnouncements.filter(a => a.id !== id);
-    writeStorage(KEYS.ANNOUNCEMENTS, filtered);
-    showFeedback('Announcement removed.');
-    reloadData();
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      await storageHelper.deleteAnnouncement(id);
+      showFeedback('Announcement removed.');
+      await reloadData();
+    } catch (err) {
+      showFeedback(err.message, 'error');
+    }
   };
 
   // Save Settings
-  const handleSaveSettings = (e) => {
+  const handleSaveSettings = async (e) => {
     e.preventDefault();
-    const dbSettings = readStorage(KEYS.SETTINGS) || {};
-    dbSettings.announcementTicker = tickerText;
-    dbSettings.allowNewRegistrations = registrationsOpen;
-
-    writeStorage(KEYS.SETTINGS, dbSettings);
-    showFeedback('Global preferences written to system storage.');
-    reloadData();
+    try {
+      await storageHelper.updateSettings({
+        announcement_ticker: tickerText,
+        allow_new_registrations: registrationsOpen
+      });
+      showFeedback('Global preferences written to system storage.');
+      await reloadData();
+    } catch (err) {
+      showFeedback(err.message, 'error');
+    }
   };
 
   // Open Product Modal for Edit
@@ -427,7 +401,7 @@ const AdminDashboard = () => {
   };
 
   // Save/Create Product (Single)
-  const handleProductEditSubmit = (e) => {
+  const handleProductEditSubmit = async (e) => {
     e.preventDefault();
     const parsedPrice = parseFloat(productForm.price);
     const parsedStock = parseInt(productForm.stock);
@@ -441,72 +415,44 @@ const AdminDashboard = () => {
       return;
     }
 
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-
-    if (editingProduct) {
-      const index = dbProducts.findIndex(p => p.id === editingProduct.id);
-      if (index === -1) {
-        showFeedback('Listing not found.', 'error');
-        return;
-      }
-
-      const updated = {
-        ...dbProducts[index],
-        title: productForm.title,
-        category: productForm.category,
-        creator: productForm.creator,
-        description: productForm.description,
-        imageUrl: productForm.imageUrl,
-        genre: productForm.genre,
-        releaseYear: productForm.releaseYear,
-        language: productForm.language,
-        price: parsedPrice,
-        stock: parsedStock
-      };
-
-      dbProducts[index] = updated;
-    } else {
-      // Add new product listing
-      const newProduct = {
-        id: `prod-${productForm.category.toLowerCase()}-${Date.now()}`,
-        title: productForm.title,
-        category: productForm.category,
-        creator: productForm.creator,
-        description: productForm.description,
-        imageUrl: productForm.imageUrl,
-        genre: productForm.genre,
-        releaseYear: productForm.releaseYear,
-        language: productForm.language,
-        price: parsedPrice,
-        stock: parsedStock,
-        rating: 5.0,
-        sellerId: currentUser.id,
-        sellerName: currentUser.name,
-        createdAt: new Date().toISOString()
-      };
-      dbProducts.push(newProduct);
-    }
-
     try {
-      storageHelper.saveProducts(dbProducts, currentUser);
-      showFeedback(editingProduct ? `Product "${productForm.title}" catalog attributes updated.` : `Product "${productForm.title}" successfully added to the catalog.`);
+      if (editingProduct) {
+        await storageHelper.updateProduct(editingProduct.id, {
+          title: productForm.title,
+          category: productForm.category,
+          genre: productForm.genre,
+          price: parsedPrice,
+          stock: parsedStock,
+          image_url: productForm.imageUrl
+        });
+        showFeedback(`Product "${productForm.title}" catalog attributes updated.`);
+      } else {
+        await storageHelper.insertProduct({
+          title: productForm.title,
+          category: productForm.category,
+          genre: productForm.genre,
+          price: parsedPrice,
+          stock: parsedStock,
+          image_url: productForm.imageUrl,
+          seller_id: currentUser.id
+        });
+        showFeedback(`Product "${productForm.title}" successfully added to the catalog.`);
+      }
       setIsProductModalOpen(false);
-      reloadData();
+      await reloadData();
     } catch (error) {
       showFeedback(error.message, 'error');
     }
   };
 
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = async (productId) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this listing?');
     if (!confirmDelete) return;
 
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const filtered = dbProducts.filter(p => p.id !== productId);
     try {
-      storageHelper.saveProducts(filtered, currentUser);
+      await storageHelper.deleteProduct(productId);
       showFeedback('Product listing removed.');
-      reloadData();
+      await reloadData();
     } catch (error) {
       showFeedback(error.message, 'error');
     }
@@ -621,7 +567,7 @@ const AdminDashboard = () => {
               System Diagnostics
             </h3>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div>[SYSTEM STATUS] ONLINE - LOCALSTORAGE CORE HEALTHY</div>
+              <div>[SYSTEM STATUS] ONLINE - SUPABASE CONNECTION SECURED</div>
               <div>[SETTINGS ADAPTING] ALLOW REGISTRATIONS: {registrationsOpen ? 'TRUE' : 'FALSE'}</div>
               <div>[ACTIVE ANNOUNCEMENTS] COUNT: {announcements.length}</div>
               <div>[DEMO DATA INTEGRITY] LOADED SEED FILE VERIFIED: {products.length > 0 ? 'TRUE' : 'EMPTY'}</div>
@@ -691,7 +637,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Zero padding dense table */}
-            <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--hairline)', backgroundColor: 'var(--panel-raised)', color: 'var(--text-muted)' }}>
@@ -948,7 +894,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Zero padding dense table */}
-            <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--hairline)', backgroundColor: 'var(--panel-raised)', color: 'var(--text-muted)' }}>
@@ -1192,7 +1138,7 @@ const AdminDashboard = () => {
       {activeTab === 'staff' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2rem', alignItems: 'start' }} className="staff-grid">
           {/* List of curators */}
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+          <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--hairline)', backgroundColor: 'var(--panel-raised)', color: 'var(--text-muted)' }}>
@@ -1372,38 +1318,7 @@ const AdminDashboard = () => {
             </form>
           </div>
 
-          {/* Reset Demo Data controls */}
-          <div style={{
-            background: 'var(--panel)',
-            border: '1px solid #FF4D6D',
-            padding: '2rem',
-            borderRadius: '6px',
-            boxShadow: '0 0 10px rgba(255, 77, 109, 0.05)'
-          }}>
-            <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.2rem', textTransform: 'uppercase', color: '#FF4D6D', marginBottom: '1rem' }}>
-              DANGER ZONE
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-              Reverting data clears all custom users, products, wishlists, shopping carts, and simulated order files, restoring the database back to standard seed settings.
-            </p>
-            <button 
-              onClick={() => {
-                const check = window.confirm('Revert all demo database data? This clears current sessions.');
-                if (check) resetDemoData();
-              }} 
-              className="btn"
-              style={{
-                width: '100%',
-                background: '#351717',
-                border: '1px solid #FF4D6D',
-                color: '#FF4D6D',
-                fontWeight: 'bold',
-                padding: '0.85rem'
-              }}
-            >
-              Reset Simulated Database
-            </button>
-          </div>
+
 
         </div>
       )}

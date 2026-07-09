@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { readStorage, KEYS } from '../../utils/localStorage';
+import { storageHelper } from '../../utils/storageHelper';
 import Navbar from '../../components/Common/Navbar';
 import HeroBanner from '../../components/Common/HeroBanner';
 import CategoryRow from '../../components/Common/CategoryRow';
-import LiveActivityTicker from '../../components/Common/LiveActivityTicker';
+
 import { getPopularMovies } from '../../services/tmdbApi';
 import { getPopularAnime } from '../../services/jikanApi';
 import { getPopularBooks } from '../../services/googleBooksApi';
+import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,19 @@ const LandingPage = () => {
   const [popularProducts, setPopularProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ── Realtime: patch stock for seeded products when updated in DB ──────────
+  const handleStockUpdate = useCallback((updatedProduct) => {
+    setLocalProducts(prev =>
+      prev.map(p =>
+        p.id === updatedProduct.id
+          ? { ...p, stock: updatedProduct.stock }
+          : p
+      )
+    );
+  }, []);
+
+  useProductStockSubscription(handleStockUpdate, localProducts.length > 0);
+
   // Load local and fetch live popular products
   useEffect(() => {
     // 1. Scroll listener
@@ -27,42 +41,45 @@ const LandingPage = () => {
     };
     window.addEventListener('scroll', handleScroll);
 
-    // 2. Read local products and announcements
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const isSeedAnime = p => p.id.startsWith('prod-anime-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    const isSeedMovie = p => p.id.startsWith('prod-movie-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    const isSeedBook = p => p.id.startsWith('prod-book-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    
-    // Retain Manga, Comics, and custom listings added by users
-    const preservedLocal = dbProducts.filter(p => !isSeedAnime(p) && !isSeedMovie(p) && !isSeedBook(p));
-    setLocalProducts(preservedLocal);
-
-    const settings = readStorage(KEYS.SETTINGS) || {};
-    setAnnouncementTicker(settings.announcementTicker || '');
-
-    // 3. Fetch popular movies, anime, books in parallel
     let active = true;
     const controller = new AbortController();
 
     async function loadLandingData() {
       setLoading(true);
-      const results = await Promise.allSettled([
-        getPopularMovies(controller.signal),
-        getPopularAnime(controller.signal),
-        getPopularBooks(controller.signal)
-      ]);
+      try {
+        const [dbProducts, settings, results] = await Promise.all([
+          storageHelper.getProducts(),
+          storageHelper.getSettings().catch(() => ({})),
+          Promise.allSettled([
+            getPopularMovies(controller.signal),
+            getPopularAnime(controller.signal),
+            getPopularBooks(controller.signal)
+          ])
+        ]);
 
-      if (!active) return;
+        if (!active) return;
 
-      const popular = [];
-      results.forEach(res => {
-        if (res.status === 'fulfilled') {
-          popular.push(...res.value);
+        if (dbProducts) {
+          setLocalProducts(dbProducts);
         }
-      });
+        if (settings && settings.announcement_ticker) {
+          setAnnouncementTicker(settings.announcement_ticker);
+        }
 
-      setPopularProducts(popular);
-      setLoading(false);
+        const popular = [];
+        const apiResults = results;
+        apiResults.forEach(res => {
+          if (res.status === 'fulfilled') {
+            popular.push(...res.value);
+          }
+        });
+
+        setPopularProducts(popular);
+      } catch (err) {
+        console.error('Failed to load landing page data:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
     loadLandingData();
@@ -212,7 +229,7 @@ const LandingPage = () => {
               ORBIT
             </h4>
             <p style={{ lineHeight: '1.6' }}>
-              A simulated React physical-media repository catalog. Built frontend-only using localStorage.
+              A simulated React physical-media repository catalog. Powered by Supabase for authentication and database persistence.
             </p>
           </div>
 
@@ -254,13 +271,12 @@ const LandingPage = () => {
         }}>
           <span>&copy; 2026 Orbit Catalog Inc. Simulated transactions only.</span>
           <span style={{ fontSize: '0.75rem', maxWidth: '400px', textAlign: 'right' }}>
-            Disclaimer: Authentication is simulated using localStorage. This product uses sample artwork references but does not establish commercial sales.
+            Disclaimer: Powered by Supabase. This product uses sample artwork references but does not establish commercial sales.
           </span>
         </div>
       </footer>
 
-      {/* Simulated Live Action Feed */}
-      <LiveActivityTicker />
+
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, KEYS } from '../../utils/localStorage';
 import { storageHelper } from '../../utils/storageHelper';
 
 const categoryColors = {
@@ -57,43 +56,49 @@ const SellerDashboard = () => {
 
   // Load seller data
   useEffect(() => {
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const dbOrders = readStorage(KEYS.ORDERS) || [];
+    let active = true;
+    async function loadSellerData() {
+      try {
+        const [dbProducts, dbOrders] = await Promise.all([
+          storageHelper.getProducts({ sellerId: currentUser.id }),
+          storageHelper.getOrders()
+        ]);
+        if (!active) return;
+        setMyProducts(dbProducts);
 
-    // Filter products that belong to this seller
-    const sellerProds = dbProducts.filter(p => p.sellerId === currentUser.id);
-    setMyProducts(sellerProds);
-
-    // Parse sales orders (orders that contain items owned by this seller)
-    const sales = [];
-    dbOrders.forEach(order => {
-      const sellerItems = order.items.filter(item => {
-        // Match product back to database to check sellerId
-        const dbP = dbProducts.find(p => p.id === item.productId);
-        return dbP && dbP.sellerId === currentUser.id;
-      });
-
-      if (sellerItems.length > 0) {
-        sellerItems.forEach(item => {
-          sales.push({
-            orderId: order.id,
-            buyerName: order.userName,
-            date: order.date,
-            productId: item.productId,
-            title: item.title,
-            category: item.category,
-            price: item.price,
-            quantity: item.quantity,
-            subtotal: item.price * item.quantity
-          });
+        const sales = [];
+        dbOrders.forEach(order => {
+          // In Supabase, items inside orders table items JSONB array are saved with sellerId
+          const sellerItems = order.items.filter(item => item.sellerId === currentUser.id);
+          if (sellerItems.length > 0) {
+            sellerItems.forEach(item => {
+              sales.push({
+                orderId: order.id,
+                buyerName: order.profiles?.name || 'Buyer',
+                date: order.created_at,
+                productId: item.productId,
+                title: item.title,
+                category: item.category,
+                price: item.price,
+                quantity: item.quantity,
+                subtotal: item.price * item.quantity
+              });
+            });
+          }
         });
+        setSalesOrders(sales);
+      } catch (err) {
+        console.error('Failed to load seller dashboard data:', err);
       }
-    });
-    setSalesOrders(sales);
+    }
+    if (currentUser) {
+      loadSellerData();
+    }
+    return () => { active = false; };
   }, [currentUser]);
 
   // Handle Profile Update
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setProfileFeedback({ text: '', type: '' });
 
@@ -113,7 +118,7 @@ const SellerDashboard = () => {
       }
     }
 
-    const success = updateProfile({
+    const success = await updateProfile({
       name: profileForm.name,
       email: profileForm.email,
       ...(profileForm.password && { password: profileForm.password })
@@ -166,7 +171,7 @@ const SellerDashboard = () => {
   };
 
   // Handle Add/Edit Form Submit
-  const handleProductSubmit = (e) => {
+  const handleProductSubmit = async (e) => {
     e.preventDefault();
     setProductFeedback({ text: '', type: '' });
 
@@ -195,86 +200,60 @@ const SellerDashboard = () => {
       return;
     }
 
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-
     if (editingProduct) {
       // Modify existing
-      const index = dbProducts.findIndex(p => p.id === editingProduct.id);
-      if (index === -1) {
-        setProductFeedback({ text: 'Product not found.', type: 'error' });
-        return;
-      }
-
-      // Security check: ensure own product
-      if (dbProducts[index].sellerId !== currentUser.id) {
-        setProductFeedback({ text: 'Access denied: You do not own this listing.', type: 'error' });
-        return;
-      }
-
       const updated = {
-        ...dbProducts[index],
         title: productForm.title,
         category: productForm.category,
-        creator: productForm.creator,
-        description: productForm.description,
-        imageUrl: productForm.imageUrl,
         genre: productForm.genre,
-        releaseYear: productForm.releaseYear,
-        language: productForm.language,
         price: parsedPrice,
-        stock: parsedStock
+        stock: parsedStock,
+        image_url: productForm.imageUrl
       };
 
-      dbProducts[index] = updated;
-      storageHelper.saveProducts(dbProducts, currentUser);
-      setMyProducts(dbProducts.filter(p => p.sellerId === currentUser.id));
-      setIsModalOpen(false);
+      try {
+        await storageHelper.updateProduct(editingProduct.id, updated);
+        const dbProducts = await storageHelper.getProducts({ sellerId: currentUser.id });
+        setMyProducts(dbProducts);
+        setIsModalOpen(false);
+      } catch (err) {
+        setProductFeedback({ text: err.message, type: 'error' });
+      }
     } else {
       // Add new product
       const newProduct = {
-        id: `prod-${productForm.category.toLowerCase()}-${Date.now()}`,
         title: productForm.title,
         category: productForm.category,
-        creator: productForm.creator,
-        description: productForm.description,
-        imageUrl: productForm.imageUrl,
         genre: productForm.genre,
-        releaseYear: productForm.releaseYear,
-        language: productForm.language,
         price: parsedPrice,
         stock: parsedStock,
-        rating: 5.0,
-        sellerId: currentUser.id,
-        sellerName: currentUser.name,
-        createdAt: new Date().toISOString()
+        image_url: productForm.imageUrl,
+        seller_id: currentUser.id
       };
 
-      dbProducts.push(newProduct);
-      storageHelper.saveProducts(dbProducts, currentUser);
-      setMyProducts(dbProducts.filter(p => p.sellerId === currentUser.id));
-      setIsModalOpen(false);
+      try {
+        await storageHelper.insertProduct(newProduct);
+        const dbProducts = await storageHelper.getProducts({ sellerId: currentUser.id });
+        setMyProducts(dbProducts);
+        setIsModalOpen(false);
+      } catch (err) {
+        setProductFeedback({ text: err.message, type: 'error' });
+      }
     }
   };
 
   // Delete own listing
-  const handleDeleteProduct = (productId) => {
+  const handleDeleteProduct = async (productId) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this listing?');
     if (!confirmDelete) return;
 
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const prod = dbProducts.find(p => p.id === productId);
-
-    if (!prod) return;
-
-    // Security check
-    if (prod.sellerId !== currentUser.id) {
-      alert('Access denied: You do not own this listing.');
-      return;
+    try {
+      await storageHelper.deleteProduct(productId);
+      const dbProducts = await storageHelper.getProducts({ sellerId: currentUser.id });
+      setMyProducts(dbProducts);
+    } catch (err) {
+      alert(err.message);
     }
-
-    const filtered = dbProducts.filter(p => p.id !== productId);
-    storageHelper.saveProducts(filtered, currentUser);
-    setMyProducts(filtered.filter(p => p.sellerId === currentUser.id));
   };
 
   // Stats calculation
@@ -481,7 +460,7 @@ const SellerDashboard = () => {
 
       {/* 2. LISTINGS TAB */}
       {activeTab === 'listings' && (
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+        <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
           {myProducts.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
               <thead>
@@ -555,7 +534,7 @@ const SellerDashboard = () => {
 
       {/* 3. SALES INVOICES TAB */}
       {activeTab === 'sales' && (
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+        <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
           {salesOrders.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
               <thead>

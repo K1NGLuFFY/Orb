@@ -76,8 +76,9 @@ const LiveActivityTicker = () => {
       className={animationClass}
       style={{
         position: 'fixed',
-        bottom: '2rem',
-        left: '2rem',
+        bottom: 'clamp(1rem, 4vh, 2rem)',
+        left: 'clamp(1rem, 4vw, 2rem)',
+        maxWidth: 'calc(100vw - clamp(2rem, 8vw, 4rem))',
         zIndex: 998,
         display: 'flex',
         alignItems: 'center',
@@ -89,7 +90,8 @@ const LiveActivityTicker = () => {
         padding: '0.6rem 1.2rem',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
         pointerEvents: 'none',
-        transition: 'all 0.5s ease'
+        transition: 'all 0.5s ease',
+        boxSizing: 'border-box'
       }}
     >
       {/* CSS Keyframes for live activity ticker widget */}
@@ -126,7 +128,8 @@ const LiveActivityTicker = () => {
           height: '6px',
           borderRadius: '50%',
           backgroundColor: '#00D9C0',
-          boxShadow: '0 0 8px #00D9C0'
+          boxShadow: '0 0 8px #00D9C0',
+          flexShrink: 0
         }}
       />
 
@@ -134,7 +137,10 @@ const LiveActivityTicker = () => {
         fontFamily: 'var(--font-body)',
         fontSize: '0.8rem',
         color: 'var(--text)',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        flex: 1
       }}>
         <span style={{
           fontFamily: 'var(--font-mono)',

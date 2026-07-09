@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, KEYS } from '../../utils/localStorage';
+import { storageHelper } from '../../utils/storageHelper';
 import { useCart } from '../../context/CartContext';
 import ProductCard from '../../components/Common/ProductCard';
+import { useDeleteAccount } from '../../hooks/useDeleteAccount';
 
 const BuyerDashboard = () => {
   const { currentUser, updateProfile } = useAuth();
   const { wishlist, removeFromWishlist } = useCart();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { deleteAccount, deleting, deleteError } = useDeleteAccount();
   const activeTab = searchParams.get('tab') || 'overview';
 
   // State
@@ -27,18 +30,26 @@ const BuyerDashboard = () => {
 
   // Load dashboard data
   useEffect(() => {
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const dbOrders = readStorage(KEYS.ORDERS) || [];
-    setProducts(dbProducts);
-
-    // Filter orders for current buyer
-    const userOrders = dbOrders.filter(o => o.userId === currentUser.id);
-    setOrders(userOrders);
-
-    // Hydrate wishlist details
-    const hydratedWishlist = dbProducts.filter(p => wishlist.includes(p.id));
-    setWishlistItems(hydratedWishlist);
-  }, [currentUser, wishlist]);
+    let active = true;
+    async function loadDashboardData() {
+      try {
+        const [dbProducts, dbOrders] = await Promise.all([
+          storageHelper.getProducts(),
+          storageHelper.getOrders({ userId: currentUser.id })
+        ]);
+        if (active) {
+          setProducts(dbProducts);
+          setOrders(dbOrders);
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+      }
+    }
+    if (currentUser) {
+      loadDashboardData();
+    }
+    return () => { active = false; };
+  }, [currentUser]);
 
   // Sync wishlist list if state updates
   useEffect(() => {
@@ -47,7 +58,7 @@ const BuyerDashboard = () => {
   }, [wishlist, products]);
 
   // Handle Profile Update
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setFeedback({ text: '', type: '' });
 
@@ -76,12 +87,24 @@ const BuyerDashboard = () => {
       fieldsToUpdate.password = profileForm.password;
     }
 
-    const success = updateProfile(fieldsToUpdate);
+    const success = await updateProfile(fieldsToUpdate);
     if (success) {
       setFeedback({ text: 'Profile updated successfully!', type: 'success' });
       setProfileForm(prev => ({ ...prev, password: '', confirmPassword: '' }));
     } else {
       setFeedback({ text: 'Failed to update profile. Email might be in use.', type: 'error' });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to permanently delete your account? This cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    const success = await deleteAccount();
+    if (success) {
+      navigate('/');
     }
   };
 
@@ -269,6 +292,34 @@ const BuyerDashboard = () => {
                 Save Profile Changes
               </button>
             </form>
+
+            <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem', marginTop: '2rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Danger Zone
+              </span>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="btn btn-secondary"
+                style={{
+                  width: '100%',
+                  borderColor: '#e63946',
+                  color: '#ff6b76',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '44px'
+                }}
+              >
+                {deleting ? 'Deleting Account...' : 'Delete My Account'}
+              </button>
+              {deleteError && (
+                <div style={{ marginTop: '0.75rem', color: '#ff6b76', fontSize: '0.85rem' }}>
+                  {deleteError}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -393,7 +444,7 @@ const BuyerDashboard = () => {
                 </div>
 
                 {/* Items Row list */}
-                <div style={{ padding: '1.5rem 2rem' }}>
+                <div style={{ padding: '1rem clamp(1rem, 4vw, 2rem)', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--hairline)', textAlign: 'left', color: 'var(--text-muted)' }}>

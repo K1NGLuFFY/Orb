@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { readStorage, KEYS, ensureProductRegistered } from '../../utils/localStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../../components/Common/Navbar';
@@ -8,6 +7,15 @@ import { getMovieDetails } from '../../services/tmdbApi';
 import { getAnimeDetails } from '../../services/jikanApi';
 import { getBookDetails } from '../../services/googleBooksApi';
 import { FALLBACK_IMAGE } from '../../components/Common/ProductCard';
+import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
+import { supabase } from '../../lib/supabaseClient';
+
+const isApiProduct = (productId) =>
+  typeof productId === 'string' && (
+    productId.startsWith('api-movie-') ||
+    productId.startsWith('api-anime-') ||
+    productId.startsWith('api-book-')
+  );
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -30,11 +38,22 @@ const ProductDetailsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { addToCart, wishlist, addToWishlist, removeFromWishlist } = useCart();
-  
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [feedbackMessage, setFeedbackMessage] = useState({ text: '', type: '' }); // success | error
+
+  // Realtime stock update handler
+  const handleStockUpdate = useCallback((updatedProduct) => {
+    if (updatedProduct.id === id) {
+      setProduct(prev => prev ? { ...prev, stock: updatedProduct.stock } : prev);
+    }
+  }, [id]);
+
+  // Subscribe to updates if it's a seeded database product (has real stock in Supabase)
+  const isSeededProduct = !isApiProduct(id);
+  useProductStockSubscription(handleStockUpdate, isSeededProduct);
 
   useEffect(() => {
     let active = true;
@@ -43,39 +62,40 @@ const ProductDetailsPage = () => {
     async function loadProduct() {
       setLoading(true);
       try {
-        const localProducts = readStorage(KEYS.PRODUCTS) || [];
-        const found = localProducts.find(p => p.id === id);
-        
-        if (found) {
-          if (active) {
-            setProduct(found);
-          }
-          return;
-        }
+        if (!isApiProduct(id)) {
+          // Fetch from Supabase products table
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', id)
+            .single();
 
-        // If not in local products, and starts with api-, fetch it live
-        if (id.startsWith('api-movie-')) {
-          const apiProduct = await getMovieDetails(id, controller.signal);
-          if (active && apiProduct) {
-            setProduct(apiProduct);
-            ensureProductRegistered(apiProduct);
+          if (error) throw new Error(error.message);
+          if (active && data) {
+            setProduct(data);
           }
-        } else if (id.startsWith('api-anime-')) {
-          const apiProduct = await getAnimeDetails(id, controller.signal);
-          if (active && apiProduct) {
-            setProduct(apiProduct);
-            ensureProductRegistered(apiProduct);
-          }
-        } else if (id.startsWith('api-book-')) {
-          const apiProduct = await getBookDetails(id, controller.signal);
-          if (active && apiProduct) {
-            setProduct(apiProduct);
-            ensureProductRegistered(apiProduct);
+        } else {
+          // If starts with api-, fetch it live from corresponding public API
+          if (id.startsWith('api-movie-')) {
+            const apiProduct = await getMovieDetails(id, controller.signal);
+            if (active && apiProduct) {
+              setProduct(apiProduct);
+            }
+          } else if (id.startsWith('api-anime-')) {
+            const apiProduct = await getAnimeDetails(id, controller.signal);
+            if (active && apiProduct) {
+              setProduct(apiProduct);
+            }
+          } else if (id.startsWith('api-book-')) {
+            const apiProduct = await getBookDetails(id, controller.signal);
+            if (active && apiProduct) {
+              setProduct(apiProduct);
+            }
           }
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.error('Failed to load dynamic product details:', err);
+          console.error('Failed to load product details:', err);
         }
       } finally {
         if (active) setLoading(false);
@@ -135,7 +155,7 @@ const ProductDetailsPage = () => {
 
   const spineColor = categoryColors[product.category] || 'var(--text-muted)';
   const creatorLabel = creatorLabels[product.category] || 'Creator';
-  
+
   const isWishlisted = wishlist.includes(product.id);
   const isBuyer = !currentUser || currentUser.role === 'Buyer';
 
@@ -199,23 +219,13 @@ const ProductDetailsPage = () => {
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
+
       {/* Navbar */}
       <Navbar />
 
       {/* Main product wrapper */}
-      <main style={{
-        flex: 1,
-        maxWidth: '1000px',
-        width: '100%',
-        margin: '3rem auto',
-        padding: '0 2rem',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '4rem',
-        alignItems: 'start'
-      }}>
-        
+      <main className="details-main">
+
         {/* Left Side: Image display with thick Spine tab */}
         <div style={{
           position: 'relative',
@@ -236,9 +246,9 @@ const ProductDetailsPage = () => {
             zIndex: 5
           }} />
 
-          <img 
-            src={product.imageUrl || FALLBACK_IMAGE} 
-            alt={product.title} 
+          <img
+            src={product.imageUrl || FALLBACK_IMAGE}
+            alt={product.title}
             style={{
               width: '100%',
               display: 'block',
@@ -256,7 +266,7 @@ const ProductDetailsPage = () => {
 
         {/* Right Side: Specifications / Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
+
           {/* Breadcrumb / Category dot */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Link to="/browse" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Browse</Link>
@@ -358,16 +368,16 @@ const ProductDetailsPage = () => {
           </div>
 
           {/* Technical Specs */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '1rem 2rem',
-            background: 'var(--panel)',
-            padding: '1.25rem',
-            borderRadius: '6px',
-            border: '1px solid var(--hairline)',
-            fontSize: '0.9rem'
-          }}>
+          <div
+            className="specs-grid"
+            style={{
+              background: 'var(--panel)',
+              padding: '1.25rem',
+              borderRadius: '6px',
+              border: '1px solid var(--hairline)',
+              fontSize: '0.9rem'
+            }}
+          >
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Year Released: </span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{product.releaseYear}</span>
@@ -397,21 +407,21 @@ const ProductDetailsPage = () => {
           }}>
             {product.stock > 0 ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Quantity:</span>
                   <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--hairline)', borderRadius: '4px', background: 'var(--panel)' }}>
-                    <button 
+                    <button
                       onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       -
                     </button>
                     <span style={{ padding: '0 0.5rem', fontFamily: 'var(--font-mono)', minWidth: '30px', textAlign: 'center' }}>
                       {quantity}
                     </span>
-                    <button 
+                    <button
                       onClick={() => setQuantity(q => Math.min(product.stock, q + 1))}
-                      style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       +
                     </button>
@@ -421,21 +431,25 @@ const ProductDetailsPage = () => {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button
                     onClick={handleAddToCart}
                     disabled={!isBuyer}
                     className="btn btn-primary"
-                    style={{ flex: 1, padding: '0.85rem 1.5rem', opacity: isBuyer ? 1 : 0.5, cursor: isBuyer ? 'pointer' : 'not-allowed' }}
+                    style={{ flex: 1, padding: '0.85rem 1.5rem', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: isBuyer ? 1 : 0.5, cursor: isBuyer ? 'pointer' : 'not-allowed' }}
                   >
                     Add to Cart
                   </button>
-                  <button 
+                  <button
                     onClick={handleToggleWishlist}
                     disabled={!isBuyer}
                     className="btn btn-secondary"
                     style={{
                       padding: '0.85rem 1.25rem',
+                      minHeight: '44px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderColor: isWishlisted ? 'var(--signal)' : 'var(--hairline)',
                       color: isWishlisted ? 'var(--signal)' : 'var(--text)',
                       opacity: isBuyer ? 1 : 0.5,
@@ -460,7 +474,7 @@ const ProductDetailsPage = () => {
                 This one's sold out. Check back later or browse similar titles.
               </div>
             )}
-            
+
             {!isBuyer && (
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                 * Standard purchasing controls are deactivated for logged-in Seller, Staff, or Admin roles.

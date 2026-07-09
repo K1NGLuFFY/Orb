@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, KEYS } from '../../utils/localStorage';
 import { storageHelper } from '../../utils/storageHelper';
 
 const categoryColors = {
@@ -39,11 +38,19 @@ const StaffDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('All'); // All | active | locked | suspended
 
   // Load database state
-  const reloadData = () => {
-    // RLS limits queries to Staff-allowed users/products (excludes Admins, etc.)
-    setUsers(storageHelper.getUsers(currentUser));
-    setProducts(storageHelper.getProducts(currentUser));
-    setOrders(readStorage(KEYS.ORDERS) || []);
+  const reloadData = async () => {
+    try {
+      const [dbUsers, dbProducts, dbOrders] = await Promise.all([
+        storageHelper.getUsers(),
+        storageHelper.getProducts(),
+        storageHelper.getOrders()
+      ]);
+      setUsers(dbUsers);
+      setProducts(dbProducts);
+      setOrders(dbOrders);
+    } catch (err) {
+      console.error('Failed to load staff dashboard data:', err);
+    }
     
     // Reset selection sets
     setSelectedProductIds(new Set());
@@ -103,7 +110,7 @@ const StaffDashboard = () => {
   };
 
   // Batch actions
-  const handleExecuteProductBatch = () => {
+  const handleExecuteProductBatch = async () => {
     if (selectedProductIds.size === 0) {
       showFeedback('No items selected.');
       return;
@@ -114,21 +121,21 @@ const StaffDashboard = () => {
       return;
     }
 
-    const allProducts = readStorage(KEYS.PRODUCTS) || [];
     const confirmDelete = window.confirm(`Delete the ${selectedProductIds.size} selected listings?`);
     if (!confirmDelete) return;
 
-    const filtered = allProducts.filter(p => !selectedProductIds.has(p.id));
     try {
-      storageHelper.saveProducts(filtered, currentUser);
+      await Promise.all(
+        Array.from(selectedProductIds).map(id => storageHelper.deleteProduct(id))
+      );
       showFeedback(`Successfully deleted ${selectedProductIds.size} product listings.`);
-      reloadData();
+      await reloadData();
     } catch (error) {
       showFeedback(error.message);
     }
   };
 
-  const handleExecuteUserBatch = () => {
+  const handleExecuteUserBatch = async () => {
     if (selectedUserIds.size === 0) {
       showFeedback('No users selected.');
       return;
@@ -139,43 +146,23 @@ const StaffDashboard = () => {
       return;
     }
 
-    const allUsers = readStorage(KEYS.USERS) || [];
-    let updatedUsers = [...allUsers];
-
-    if (userBatchAction === 'lock') {
-      updatedUsers = allUsers.map(u => {
-        if (selectedUserIds.has(u.id)) {
-          return { ...u, status: 'locked' };
-        }
-        return u;
-      });
-    } else if (userBatchAction === 'activate') {
-      updatedUsers = allUsers.map(u => {
-        if (selectedUserIds.has(u.id)) {
-          return { ...u, status: 'active' };
-        }
-        return u;
-      });
-    }
-
+    const newStatus = userBatchAction === 'lock' ? 'locked' : 'active';
     try {
-      storageHelper.saveUsers(updatedUsers, currentUser);
+      await Promise.all(
+        Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { status: newStatus }))
+      );
       showFeedback(`Successfully updated status for ${selectedUserIds.size} user profiles.`);
-      reloadData();
+      await reloadData();
     } catch (error) {
       showFeedback(error.message);
     }
   };
 
   // Toggle user lock/unlock status (Single)
-  const handleToggleUserLock = (userId) => {
-    const dbUsers = readStorage(KEYS.USERS) || [];
-    const index = dbUsers.findIndex(u => u.id === userId);
-    
-    if (index === -1) return;
-    
-    const targetUser = dbUsers[index];
-    
+  const handleToggleUserLock = async (userId) => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
     // Safety check: Staff cannot alter Admin or other Staff roles
     if (targetUser.role === 'Admin' || targetUser.role === 'Staff') {
       showFeedback('Access Denied: Staff cannot alter Admin or Staff parameters.');
@@ -184,11 +171,10 @@ const StaffDashboard = () => {
 
     const currentStatus = targetUser.status || 'active';
     const newStatus = currentStatus === 'active' ? 'locked' : 'active';
-    
-    dbUsers[index].status = newStatus;
+
     try {
-      storageHelper.saveUsers(dbUsers, currentUser);
-      reloadData();
+      await storageHelper.updateUser(userId, { status: newStatus });
+      await reloadData();
       showFeedback(`User account "${targetUser.name}" has been ${newStatus}.`);
     } catch (error) {
       showFeedback(error.message);
@@ -196,20 +182,14 @@ const StaffDashboard = () => {
   };
 
   // Remove listing (Single)
-  const handleRemoveProduct = (productId) => {
+  const handleRemoveProduct = async (productId) => {
     const confirmDelete = window.confirm('Are you sure you want to remove this listing?');
     if (!confirmDelete) return;
 
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const pToDelete = dbProducts.find(p => p.id === productId);
-    
-    if (!pToDelete) return;
-
-    const filtered = dbProducts.filter(p => p.id !== productId);
     try {
-      storageHelper.saveProducts(filtered, currentUser);
-      reloadData();
-      showFeedback(`Product listing "${pToDelete.title}" removed for moderation violation.`);
+      await storageHelper.deleteProduct(productId);
+      await reloadData();
+      showFeedback(`Product listing removed for moderation violation.`);
     } catch (error) {
       showFeedback(error.message);
     }
@@ -430,7 +410,7 @@ const StaffDashboard = () => {
             </div>
 
             {/* Zero padding dense table */}
-            <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--hairline)', backgroundColor: 'var(--panel-raised)', color: 'var(--text-muted)' }}>
@@ -648,8 +628,7 @@ const StaffDashboard = () => {
               </span>
             </div>
 
-            {/* Zero padding dense table */}
-            <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--hairline)', backgroundColor: 'var(--panel-raised)', color: 'var(--text-muted)' }}>

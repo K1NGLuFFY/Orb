@@ -1,147 +1,164 @@
-import { readStorage, writeStorage, KEYS } from './localStorage';
+// src/utils/storageHelper.js
+import { supabase } from '../lib/supabaseClient';
 
 /**
- * Strict operational middleware layer for querying and mutating data.
- * Enforces Role-Based access and Simulated Row-Level Security (RLS).
+ * Supabase-backed data helper.
+ * RLS is enforced server-side. Client-side role checks are no longer needed.
+ *
+ * NOTE: "products" here means ONLY seeded/DB products with real stock.
+ * Live API products (TMDB/Jikan/Google Books) are never stored in this table.
  */
 export const storageHelper = {
+
+  // ── PRODUCTS ──────────────────────────────────────────────────────────────
+
   /**
-   * Get products with RLS rules.
-   * If the role is Seller, queries automatically enforce: products.filter(item => item.sellerId === currentUserId).
+   * Fetch products from Supabase.
+   * RLS: Sellers automatically see all (public read). If you want seller-scoped
+   * queries in admin dashboards, pass filters from the calling component.
    */
-  getProducts: (currentUser) => {
-    const products = readStorage(KEYS.PRODUCTS) || [];
-    if (currentUser && currentUser.role === 'Seller') {
-      return products.filter(item => item.sellerId === currentUser.id);
-    }
-    return products;
+  getProducts: async ({ category, sellerId } = {}) => {
+    let query = supabase.from('products').select('*').order('created_at', { ascending: false });
+
+    if (category) query = query.eq('category', category);
+    if (sellerId) query = query.eq('seller_id', sellerId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data ?? [];
   },
 
   /**
-   * Write products to storage with RLS enforcement.
-   * Modifying data targets outside the user's scope fails immediately.
+   * Insert a new product.
+   * RLS: Only Seller (own seller_id), Staff, or Admin can insert.
    */
-  saveProducts: (products, currentUser) => {
-    if (!currentUser) {
-      throw new Error("Authentication required.");
-    }
+  insertProduct: async (product) => {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([product])
+      .select()
+      .single();
 
-    // Admin has universal mutation permission
-    if (currentUser.role === 'Admin') {
-      writeStorage(KEYS.PRODUCTS, products);
-      return true;
-    }
-
-    // Staff can moderate (CRUD) products
-    if (currentUser.role === 'Staff') {
-      writeStorage(KEYS.PRODUCTS, products);
-      return true;
-    }
-
-    // Seller can only add/update/delete their own listings
-    if (currentUser.role === 'Seller') {
-      const originalProducts = readStorage(KEYS.PRODUCTS) || [];
-      
-      // Verify no other seller's products are modified or deleted
-      const otherSellersProds = originalProducts.filter(p => p.sellerId !== currentUser.id);
-      const hasViolations = otherSellersProds.some(orig => {
-        const found = products.find(p => p.id === orig.id);
-        if (!found) return true; // original product deleted by seller
-        // check for value modifications
-        return found.sellerId !== orig.sellerId || 
-               found.title !== orig.title || 
-               found.category !== orig.category ||
-               found.creator !== orig.creator ||
-               found.price !== orig.price;
-      });
-
-      // Verify no product is added with a different sellerId
-      const addedOthers = products.some(p => p.sellerId !== currentUser.id && !originalProducts.some(orig => orig.id === p.id));
-
-      if (hasViolations || addedOthers) {
-        throw new Error("Access Denied: Sellers may only manage inventory matching their unique sellerId.");
-      }
-
-      writeStorage(KEYS.PRODUCTS, products);
-      return true;
-    }
-
-    throw new Error("Access Denied: You do not have permission to modify inventory.");
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   /**
-   * Get users with RLS rules.
-   * If Staff, user list omits Admin entries.
+   * Update an existing product by id.
+   * RLS: Seller (own listing), Staff, Admin.
    */
-  getUsers: (currentUser) => {
-    const users = readStorage(KEYS.USERS) || [];
-    if (!currentUser) return [];
+  updateProduct: async (productId, updates) => {
+    const { data, error } = await supabase
+      .from('products')
+      .update(updates)
+      .eq('id', productId)
+      .select()
+      .single();
 
-    if (currentUser.role === 'Admin') {
-      return users;
-    }
-
-    if (currentUser.role === 'Staff') {
-      // Staff cannot manage or view Admins in users list
-      return users.filter(u => u.role !== 'Admin');
-    }
-
-    // Buyers and Sellers can only access themselves
-    return users.filter(u => u.id === currentUser.id);
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   /**
-   * Write users to storage with RLS enforcement.
-   * If Staff, user manipulation parameters omit Admin entries from editing/removal interactions.
+   * Delete a product by id.
+   * RLS: Seller (own listing), Staff, Admin.
    */
-  saveUsers: (users, currentUser) => {
-    if (!currentUser) {
-      throw new Error("Authentication required.");
-    }
+  deleteProduct: async (productId) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
 
-    // Admin has universal mutation permission
-    if (currentUser.role === 'Admin') {
-      writeStorage(KEYS.USERS, users);
-      return true;
-    }
-
-    // Staff can manage profiles, except Admin accounts
-    if (currentUser.role === 'Staff') {
-      const originalUsers = readStorage(KEYS.USERS) || [];
-      const originalAdmins = originalUsers.filter(u => u.role === 'Admin');
-
-      // Ensure no existing Admin is deleted or mutated
-      const adminBypassed = originalAdmins.some(orig => {
-        const found = users.find(u => u.id === orig.id);
-        if (!found) return true; // deleted
-        return found.role !== orig.role || found.email !== orig.email || found.status !== orig.status;
-      });
-
-      // Ensure no new Admin account is created
-      const adminCreated = users.some(u => u.role === 'Admin' && !originalAdmins.some(orig => orig.id === u.id));
-
-      if (adminBypassed || adminCreated) {
-        throw new Error("Access Denied: Staff roles are forbidden from managing or creating Admin profiles.");
-      }
-
-      writeStorage(KEYS.USERS, users);
-      return true;
-    }
-
-    // Buyers/Sellers can only modify their own profile
-    const originalUsers = readStorage(KEYS.USERS) || [];
-    const otherUsers = originalUsers.filter(u => u.id !== currentUser.id);
-    const hasViolated = otherUsers.some(orig => {
-      const found = users.find(u => u.id === orig.id);
-      if (!found) return true; // deleted other user
-      return found.role !== orig.role || found.email !== orig.email || found.status !== orig.status;
-    });
-
-    if (hasViolated) {
-      throw new Error("Access Denied: Profiles can only modify their own local record.");
-    }
-
-    writeStorage(KEYS.USERS, users);
+    if (error) throw new Error(error.message);
     return true;
-  }
+  },
+
+  // ── USERS / PROFILES ──────────────────────────────────────────────────────
+
+  /**
+   * Fetch profiles.
+   * RLS: Own row for Buyers/Sellers; Admin sees all; Staff sees non-Admin.
+   * The DB enforces this — no JS role filtering needed here.
+   */
+  getUsers: async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, role, status, deleted_at')
+      .is('deleted_at', null)   // hide soft-deleted accounts from listings
+      .order('role');
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  /**
+   * Update a profile (Admin or Staff action — own profile update is in AuthContext).
+   */
+  updateUser: async (userId, updates) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // ── ORDERS ────────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch orders.
+   * RLS: User sees own; Seller sees orders containing their products; Admin/Staff see all.
+   */
+  getOrders: async ({ userId } = {}) => {
+    let query = supabase
+      .from('orders')
+      .select('*, profiles(name)')
+      .order('created_at', { ascending: false });
+
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────
+
+  getAnnouncements: async () => {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  // ── SETTINGS ──────────────────────────────────────────────────────────────
+
+  getSettings: async () => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  updateSettings: async (updates) => {
+    const { data, error } = await supabase
+      .from('settings')
+      .update(updates)
+      .eq('id', 1)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
 };

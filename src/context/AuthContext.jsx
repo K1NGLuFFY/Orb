@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { readStorage, writeStorage, KEYS, initializeDB } from '../utils/localStorage';
-import { comparePassword, hashPassword } from '../utils/crypto';
+// src/context/AuthContext.jsx
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -12,188 +12,258 @@ export const useAuth = () => {
   return context;
 };
 
+/**
+ * Fetch the profiles row for a given auth user id.
+ * Returns null if the profile doesn't exist yet (e.g., trigger delay) or is soft-deleted.
+ */
+const fetchProfile = async (userId) => {
+  console.log(`[fetchProfile] Querying profiles table for userId: "${userId}"`);
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, role, status, deleted_at')
+    .eq('id', userId)
+    .single();
+
+  console.log(`[fetchProfile] Query result for userId: "${userId}" - Data:`, data, 'Error:', error);
+
+  if (error || !data) {
+    console.warn(`[fetchProfile] Profile fetch failed or returned empty for userId: "${userId}". Error object:`, error);
+    return null;
+  }
+  // Treat soft-deleted accounts as logged out
+  if (data.deleted_at) {
+    console.warn(`[fetchProfile] Profile is soft-deleted (deleted_at: ${data.deleted_at}) for userId: "${userId}"`);
+    return null;
+  }
+  console.log(`[fetchProfile] Profile successfully retrieved:`, data);
+  return data;
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
-  // Initialize DB and load current user from storage on mount
-  useEffect(() => {
-    initializeDB();
-    const storedUser = readStorage(KEYS.CURRENT_USER);
-    if (storedUser) {
-      // Re-validate that user still exists and is active in DB
-      const users = readStorage(KEYS.USERS) || [];
-      const dbUser = users.find(u => u.id === storedUser.id);
-      if (dbUser && dbUser.status === 'active') {
-        setCurrentUser(dbUser);
-      } else {
-        // If user was deleted or blocked, log them out
-        writeStorage(KEYS.CURRENT_USER, null);
-        setCurrentUser(null);
-      }
-    }
-    setLoading(false);
+  // Auto-clear auth errors after 4 s
+  const clearErrorAfterDelay = useCallback(() => {
+    setTimeout(() => setAuthError(null), 4000);
   }, []);
 
-  // Clear errors after 4 seconds
-  const clearErrorAfterDelay = () => {
-    setTimeout(() => {
-      setAuthError(null);
-    }, 4000);
-  };
+  // ── Session bootstrap + live auth listener ────────────────────────────────
+  useEffect(() => {
+    // 1. Check for an existing session on mount
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id);
+        setCurrentUser(
+          profile
+            ? { ...profile, email: session.user.email }
+            : null
+        );
+      }
+      setLoading(false);
+    });
 
+    // 2. Subscribe to future auth events (tab refresh, token refresh, signout, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          setCurrentUser(
+            profile
+              ? { ...profile, email: session.user.email }
+              : null
+          );
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+        } else if (event === 'USER_UPDATED' && session?.user) {
+          // Re-fetch profile if auth metadata changed
+          const profile = await fetchProfile(session.user.id);
+          setCurrentUser(
+            profile
+              ? { ...profile, email: session.user.email }
+              : null
+          );
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ── LOGIN ─────────────────────────────────────────────────────────────────
   /**
-   * Log a user in.
-   * @param {string} email 
-   * @param {string} password 
+   * Sign in with email + password.
+   * Returns true on success, false on failure (error set in authError).
    */
   const login = async (email, password) => {
+    console.log(`[Auth Login] Initiating login for email: "${email}"`);
     setAuthError(null);
-    
-    // Read current users from store
-    const users = readStorage(KEYS.USERS) || [];
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
-    if (!user) {
-      setAuthError("We couldn't find an account with that email.");
+    console.log('[Auth Login] Calling supabase.auth.signInWithPassword...');
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    console.log('[Auth Login] signInWithPassword response - Data:', data, 'Error:', error);
+
+    if (error) {
+      console.error('[Auth Login] Authentication failed with error:', error);
+      // Map Supabase error messages to user-friendly ones
+      if (error.message.toLowerCase().includes('invalid login')) {
+        setAuthError("Incorrect email or password. Try again.");
+      } else {
+        setAuthError(error.message);
+      }
       clearErrorAfterDelay();
       return false;
     }
 
-    if (user.status === 'locked' || user.status === 'suspended') {
-      setAuthError(`This account has been ${user.status}. Please contact support for help.`);
+    console.log('[Auth Login] Authentication succeeded. User ID:', data.user.id);
+    console.log('[Auth Login] Checking if profile exists in profiles table...');
+
+    // Profile is set by onAuthStateChange listener above, but we also
+    // check status here so the user sees an immediate rejection if locked.
+    const profile = await fetchProfile(data.user.id);
+    if (!profile) {
+      console.warn('[Auth Login] No profile record found for user. Logging out to clean up session.');
+      await supabase.auth.signOut();
+      setAuthError("Account not found or has been deactivated.");
       clearErrorAfterDelay();
       return false;
     }
 
-    // Compare passwords
-    const isValid = comparePassword(password, user.passwordHash);
-    if (!isValid) {
-      setAuthError("Incorrect password. Try again.");
+    console.log('[Auth Login] Profile record found:', profile);
+
+    if (profile.status === 'locked' || profile.status === 'suspended') {
+      console.warn(`[Auth Login] Profile status is "${profile.status}". Logging out.`);
+      await supabase.auth.signOut();
+      setAuthError(`This account has been ${profile.status}. Please contact support.`);
       clearErrorAfterDelay();
       return false;
     }
 
-    // Set active session
-    // Strip sensitive hash info from state for cleanliness
-    const sessionUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt
-    };
-
-    writeStorage(KEYS.CURRENT_USER, sessionUser);
-    setCurrentUser(user); // Keep full details in react state
+    console.log('[Auth Login] Login sequence completed successfully.');
     return true;
   };
 
+  // ── REGISTER ──────────────────────────────────────────────────────────────
   /**
-   * Register a new user (only Buyer or Seller role).
+   * Register a new user. Only 'Buyer' or 'Seller' roles are permitted.
+   * The handle_new_user trigger (Step 1) auto-creates the profiles row.
    */
   const register = async (name, email, password, role) => {
+    console.log(`[Auth Register] Initiating sign up for email: "${email}", name: "${name}", role: "${role}"`);
     setAuthError(null);
 
     if (role !== 'Buyer' && role !== 'Seller') {
-      setAuthError("Invalid registration role. Only buyers and sellers may register.");
+      console.warn(`[Auth Register] Invalid role attempt: "${role}". Self-registration only permitted for Buyer or Seller.`);
+      setAuthError("Invalid registration role. Only Buyers and Sellers may self-register.");
       clearErrorAfterDelay();
       return false;
     }
 
-    const users = readStorage(KEYS.USERS) || [];
-    const emailExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (emailExists) {
-      setAuthError("This email is already registered. Try logging in.");
-      clearErrorAfterDelay();
-      return false;
-    }
-
-    const newUser = {
-      id: `user-${role.toLowerCase()}-${Date.now()}`,
-      name,
+    console.log('[Auth Register] Calling supabase.auth.signUp with metadata...');
+    const { data, error } = await supabase.auth.signUp({
       email,
-      passwordHash: hashPassword(password),
-      role,
-      status: 'active',
-      createdAt: new Date().toISOString()
-    };
+      password,
+      options: {
+        data: { name, role }   // passed as raw_user_meta_data → picked up by trigger
+      }
+    });
 
-    users.push(newUser);
-    writeStorage(KEYS.USERS, users);
+    console.log('[Auth Register] signUp response - Data:', data, 'Error:', error);
 
-    // Auto-login after registration
-    const sessionUser = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      status: newUser.status,
-      createdAt: newUser.createdAt
-    };
-    writeStorage(KEYS.CURRENT_USER, sessionUser);
-    setCurrentUser(newUser);
+    if (error) {
+      console.error('[Auth Register] Registration failed with error:', error);
+      if (error.message.toLowerCase().includes('already registered')) {
+        setAuthError("This email is already registered. Try logging in.");
+      } else {
+        setAuthError(error.message);
+      }
+      clearErrorAfterDelay();
+      return false;
+    }
+
+    console.log('[Auth Register] Registration request sent. User ID:', data.user?.id);
+    console.log('[Auth Register] Checking if session is immediately active...');
+
+    // If email confirmation is disabled in Supabase Auth settings,
+    // the session is live immediately and onAuthStateChange fires.
+    // If confirmation is enabled, data.session will be null — handle gracefully.
+    if (!data.session) {
+      console.log('[Auth Register] data.session is NULL. Email confirmation is likely enabled. User must confirm before logging in.');
+      setAuthError("Check your email to confirm your account before logging in.");
+      clearErrorAfterDelay();
+      // Return true — registration succeeded, confirmation pending
+      return true;
+    }
+
+    console.log('[Auth Register] data.session is active. User logged in immediately.');
     return true;
   };
 
-  /**
-   * Log the current user out.
-   */
-  const logout = () => {
-    writeStorage(KEYS.CURRENT_USER, null);
-    setCurrentUser(null);
+  // ── LOGOUT ────────────────────────────────────────────────────────────────
+  const logout = async () => {
     setAuthError(null);
+    await supabase.auth.signOut();
+    // setCurrentUser(null) is handled by the onAuthStateChange listener
   };
 
+  // ── UPDATE PROFILE ────────────────────────────────────────────────────────
   /**
-   * Update current user's profile details.
+   * Update the current user's profile fields.
+   * Allowed fields: name. Password change goes through Supabase Auth.
+   * Role/status changes are admin-only and should use the Dashboard.
    */
-  const updateProfile = (updatedFields) => {
+  const updateProfile = async (updatedFields) => {
     if (!currentUser) return false;
 
-    const users = readStorage(KEYS.USERS) || [];
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
+    const profileUpdates = {};
+    const authUpdates = {};
 
-    if (userIndex === -1) return false;
+    if (updatedFields.name) profileUpdates.name = updatedFields.name;
 
-    const updatedUser = {
-      ...users[userIndex],
-      ...updatedFields
-    };
-
-    // If updating password
+    // Password update goes through Supabase Auth, not the profiles table
     if (updatedFields.password) {
-      updatedUser.passwordHash = hashPassword(updatedFields.password);
-      delete updatedUser.password;
+      authUpdates.password = updatedFields.password;
     }
 
-    users[userIndex] = updatedUser;
-    writeStorage(KEYS.USERS, users);
+    // Email update goes through Supabase Auth
+    if (updatedFields.email) {
+      authUpdates.email = updatedFields.email;
+    }
 
-    // Sync session state
-    const sessionUser = {
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      status: updatedUser.status,
-      createdAt: updatedUser.createdAt
-    };
-    writeStorage(KEYS.CURRENT_USER, sessionUser);
-    setCurrentUser(updatedUser);
+    // Apply auth-level updates first
+    if (Object.keys(authUpdates).length > 0) {
+      const { error: authErr } = await supabase.auth.updateUser(authUpdates);
+      if (authErr) {
+        setAuthError(authErr.message);
+        clearErrorAfterDelay();
+        return false;
+      }
+    }
+
+    // Apply profile-row updates
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', currentUser.id);
+
+      if (profileErr) {
+        setAuthError(profileErr.message);
+        clearErrorAfterDelay();
+        return false;
+      }
+    }
+
+    // Sync local React state
+    setCurrentUser(prev => ({
+      ...prev,
+      ...profileUpdates,
+      ...(updatedFields.email ? { email: updatedFields.email } : {})
+    }));
+
     return true;
-  };
-
-  /**
-   * Resets local storage back to initial seeded database state.
-   */
-  const resetDemoData = () => {
-    initializeDB(true);
-    setCurrentUser(null);
-    window.location.reload();
   };
 
   const value = {
@@ -203,8 +273,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    updateProfile,
-    resetDemoData
+    updateProfile
+    // resetDemoData removed — not applicable with real DB
   };
 
   return (

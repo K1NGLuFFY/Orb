@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { readStorage, KEYS } from '../../utils/localStorage';
+import { supabase } from '../../lib/supabaseClient';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -20,10 +20,16 @@ const RegisterPage = () => {
 
   // Check if system settings block new accounts
   useEffect(() => {
-    const settings = readStorage(KEYS.SETTINGS) || {};
-    if (settings.allowNewRegistrations === false) {
-      setRegistrationsAllowed(false);
-    }
+    supabase
+      .from('settings')
+      .select('allow_new_registrations')
+      .eq('id', 1)
+      .single()
+      .then(({ data }) => {
+        if (data && data.allow_new_registrations === false) {
+          setRegistrationsAllowed(false);
+        }
+      });
   }, []);
 
   // Redirect if already logged in
@@ -90,16 +96,7 @@ const RegisterPage = () => {
         ORBIT MARKETPLACE
       </Link>
 
-      <div style={{
-        background: 'var(--panel)',
-        border: '1px solid var(--hairline)',
-        borderRadius: '6px',
-        width: '100%',
-        maxWidth: '440px',
-        padding: '2.5rem',
-        boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-        position: 'relative'
-      }}>
+      <div className="login-card" style={{ maxWidth: '440px' }}>
         
         {/* Spine design dot */}
         <div style={{

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { readStorage, KEYS } from '../../utils/localStorage';
+import { storageHelper } from '../../utils/storageHelper';
 import ProductCard from '../../components/Common/ProductCard';
 import Navbar from '../../components/Common/Navbar';
 import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
 import { getPopularAnime, searchAnime } from '../../services/jikanApi';
 import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
+import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -57,6 +58,19 @@ const BrowsePage = () => {
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
 
   const [loadingPopular, setLoadingPopular] = useState(false);
+
+  // ── Realtime: patch stock for seeded products when updated in DB ──────────
+  const handleStockUpdate = useCallback((updatedProduct) => {
+    setLocalProducts(prev =>
+      prev.map(p =>
+        p.id === updatedProduct.id
+          ? { ...p, stock: updatedProduct.stock }
+          : p
+      )
+    );
+  }, []);
+
+  useProductStockSubscription(handleStockUpdate, localProducts.length > 0);
   const [moviesBooksSearching, setMoviesBooksSearching] = useState(false);
   const [animeSearching, setAnimeSearching] = useState(false);
   const [error, setError] = useState(null);
@@ -69,16 +83,20 @@ const BrowsePage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const dbProducts = readStorage(KEYS.PRODUCTS) || [];
-    const isSeedAnime = p => p.id.startsWith('prod-anime-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    const isSeedMovie = p => p.id.startsWith('prod-movie-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    const isSeedBook = p => p.id.startsWith('prod-book-') && !isNaN(p.id.split('-')[2]) && parseInt(p.id.split('-')[2]) <= 50;
-    
-    const preservedLocal = dbProducts.filter(p => !isSeedAnime(p) && !isSeedMovie(p) && !isSeedBook(p));
-    setLocalProducts(preservedLocal);
-
     let active = true;
     const controller = new AbortController();
+
+    async function loadDbProducts() {
+      try {
+        const dbProducts = await storageHelper.getProducts();
+        if (active) {
+          // No need to filter seeded products like before because they are already separated in Supabase products table
+          setLocalProducts(dbProducts);
+        }
+      } catch (err) {
+        console.error('Failed to load database products:', err);
+      }
+    }
 
     async function loadPopularData() {
       setLoadingPopular(true);
@@ -101,6 +119,8 @@ const BrowsePage = () => {
       setLoadingPopular(false);
       if (successCount === 0) setError("All live catalog services failed to load. Falling back to local data only.");
     }
+
+    loadDbProducts();
     loadPopularData();
     return () => { active = false; controller.abort(); };
   }, []);
@@ -234,7 +254,7 @@ const BrowsePage = () => {
         }
       `}</style>
       <Navbar />
-      <div style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '2rem', display: 'grid', gridTemplateColumns: '260px 1fr', gap: '2.5rem' }} className="browse-layout">
+      <div style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto' }} className="browse-layout">
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div>
             <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Categories</h3>

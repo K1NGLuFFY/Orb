@@ -172,8 +172,10 @@ const HeroBanner = ({ product }) => {
         position: 'relative',
         zIndex: 10,
         maxWidth: '650px',
-        margin: '0 0 4rem 4rem',
-        paddingRight: '2rem'
+        margin: '0 auto clamp(1.5rem, 6vw, 4rem) clamp(1rem, 6vw, 4rem)',
+        paddingRight: 'clamp(1rem, 4vw, 2rem)',
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
         {/* Category tag indicator with dynamic adaptive color */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
@@ -193,7 +195,7 @@ const HeroBanner = ({ product }) => {
         {/* Big Bold Headline in display font */}
         <h1 style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '3.5rem',
+          fontSize: 'clamp(2.2rem, 7vw, 3.5rem)',
           fontWeight: '900',
           textTransform: 'uppercase',
           color: 'var(--text)',
@@ -208,7 +210,7 @@ const HeroBanner = ({ product }) => {
         {/* Truncated description */}
         <p style={{
           color: 'var(--text-muted)',
-          fontSize: '1.05rem',
+          fontSize: 'clamp(0.95rem, 2vw, 1.05rem)',
           lineHeight: '1.6',
           margin: '0 0 2rem 0',
           display: '-webkit-box',
@@ -221,19 +223,22 @@ const HeroBanner = ({ product }) => {
         </p>
 
         {/* CTA Action Buttons */}
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <Link 
             to={`/product/${product.id}`} 
             className="btn btn-primary"
             style={{ 
-              padding: '0.8rem 2.25rem', 
+              padding: '0.8rem 2rem', 
               fontSize: '0.95rem',
               fontWeight: 'bold',
               borderRadius: '4px',
               backgroundColor: adaptiveColor,
               color: buttonTextColor,
               textDecoration: 'none',
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '44px',
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
             onMouseEnter={(e) => {
@@ -250,14 +255,17 @@ const HeroBanner = ({ product }) => {
           <Link 
             to={`/product/${product.id}`} 
             style={{ 
-              padding: '0.8rem 2.25rem', 
+              padding: '0.8rem 2rem', 
               fontSize: '0.95rem',
               fontWeight: 'bold',
               borderRadius: '4px',
               border: `1px solid ${adaptiveColor}`,
               color: 'var(--text)',
               textDecoration: 'none',
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '44px',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {

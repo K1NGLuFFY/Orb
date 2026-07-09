@@ -39,6 +39,20 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
           className="hamburger-btn navbar-hamburger"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
+          style={{
+            width: '44px',
+            height: '44px',
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '5px',
+            background: 'none',
+            border: '1px solid var(--hairline)',
+            borderRadius: '6px',
+            cursor: 'pointer'
+          }}
         >
           <span className={'hamburger-line' + (menuOpen ? ' open-1' : '')}></span>
           <span className={'hamburger-line' + (menuOpen ? ' open-2' : '')}></span>
@@ -62,7 +76,14 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
                 <Link
                   to="/dashboard"
                   className="btn btn-secondary"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    minHeight: '44px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                   onClick={() => setMenuOpen(false)}
                 >
                   Dashboard
@@ -75,7 +96,12 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
                     border: 'none',
                     color: 'var(--text-muted)',
                     fontSize: '0.85rem',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    minHeight: '44px',
+                    padding: '0.5rem 1rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
                   Log Out
@@ -85,7 +111,16 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
               <>
                 <Link
                   to="/login"
-                  style={{ color: 'var(--text)', fontSize: '0.9rem', fontWeight: '500' }}
+                  style={{
+                    color: 'var(--text)',
+                    fontSize: '0.9rem',
+                    fontWeight: '500',
+                    minHeight: '44px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0.5rem 1rem'
+                  }}
                   onClick={() => setMenuOpen(false)}
                 >
                   Log In
@@ -93,7 +128,14 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
                 <Link
                   to="/register"
                   className="btn btn-primary"
-                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    fontSize: '0.85rem',
+                    minHeight: '44px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign Up
