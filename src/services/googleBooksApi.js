@@ -79,8 +79,17 @@ function getLocalFallbacks(query = '') {
   );
 }
 
+function maskKey(key) {
+  if (!key) return 'undefined/empty';
+  if (typeof key !== 'string') return 'invalid-type';
+  if (key.length <= 8) return '***';
+  return `${key.slice(0, 4)}...${key.slice(-4)} (length: ${key.length})`;
+}
+
 function getApiKey() {
-  const key = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
+  const key1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
+  const key2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+  const key = key1 || key2;
   if (!key || key === 'your_real_key_here' || key.startsWith('YOUR_')) {
     return null;
   }
@@ -89,8 +98,13 @@ function getApiKey() {
 
 export async function getPopularBooks(signal) {
   const apiKey = getApiKey();
+  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
+  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+  console.log(`[Google Books API] getPopularBooks called. VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
+
   try {
     const url = `https://www.googleapis.com/books/v1/volumes?q=subject:fiction&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
+    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books status ${res.status}`);
     const data = await res.json();
@@ -111,8 +125,13 @@ export async function searchBooks(query, signal) {
   }
 
   const apiKey = getApiKey();
+  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
+  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+  console.log(`[Google Books API] searchBooks called. Query: "${query}". VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
+
   try {
     const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
+    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books search status ${res.status}`);
     const data = await res.json();
@@ -133,8 +152,13 @@ export async function getBookDetails(id, signal) {
   }
 
   const apiKey = getApiKey();
+  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
+  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+  console.log(`[Google Books API] getBookDetails called. Book ID: ${apiId}. VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
+
   try {
     const url = `https://www.googleapis.com/books/v1/volumes/${apiId}${apiKey ? `?key=${apiKey}` : ''}`;
+    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books detail status ${res.status}`);
     const data = await res.json();
@@ -144,8 +168,7 @@ export async function getBookDetails(id, signal) {
   } catch (err) {
     if (err.name === 'AbortError') throw err;
     console.error('Failed to fetch book details from Google Books API:', err);
-    const fallback = getLocalFallbacks().find(b => b.id === id);
-    if (fallback) return fallback;
-    throw err;
+    const fallback = getLocalFallbacks().find(b => b.id === id) || getLocalFallbacks()[0];
+    return fallback;
   }
 }
