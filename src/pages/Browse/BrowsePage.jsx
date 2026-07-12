@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { storageHelper } from '../../utils/storageHelper';
 import ProductCard from '../../components/Common/ProductCard';
+import ProductGrid from '../../components/Common/ProductGrid';
 import Navbar from '../../components/Common/Navbar';
 import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
 import { getPopularAnime, searchAnime } from '../../services/jikanApi';
@@ -317,13 +318,13 @@ const BrowsePage = () => {
             {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} of ${combinedProducts.length} catalog items`}
           </div>
           {loadingPopular ? (
-            <div className="catalog-grid" style={{ padding: '12px 0 24px 0' }}>
+            <ProductGrid style={{ padding: '12px 0 24px 0' }}>
               {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
-            </div>
+            </ProductGrid>
           ) : filteredProducts.length > 0 ? (
-            <div className="catalog-grid" style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), var(--hairline) calc(100% - 2px))', backgroundSize: '100% 390px', padding: '12px 0 24px 0' }}>
+            <ProductGrid style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), var(--hairline) calc(100% - 2px))', backgroundSize: '100% 390px', padding: '12px 0 24px 0' }}>
               {filteredProducts.map(product => <ProductCard key={product.id} product={product} />)}
-            </div>
+            </ProductGrid>
           ) : (
             <div style={{ textAlign: 'center', padding: '6rem 2rem', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px', marginTop: '1rem' }}>
               <p style={{ color: 'var(--text)', fontSize: '1.15rem', marginBottom: '0.5rem', fontFamily: 'var(--font-body)' }}>Nothing matches '{searchQuery || selectedCategory}'. Try a different search.</p>
