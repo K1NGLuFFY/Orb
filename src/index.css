@@ -710,7 +710,7 @@ img {
     display: none;
   }
 
-  .topbar-user > div[style*="height: 24px"] {
+  .topbar-user > .topbar-separator {
     display: none;
   }
 
@@ -1292,4 +1292,108 @@ img {
     padding: 2.5rem !important;
   }
 }
+
+/* ==========================================================================
+   RESPONSIVE LAYOUT & GRID UTILITIES (V1.1 UPDATE)
+   ========================================================================== */
+
+/* Navbar padding responsiveness */
+.navbar-container {
+  padding: 0 2rem;
+}
+@media (max-width: 767.98px) {
+  .navbar-container {
+    padding: 0 1rem;
+  }
+}
+
+/* Category Row Wrapper responsiveness */
+.category-row-wrapper {
+  padding: 0 2.5rem;
+}
+@media (max-width: 767.98px) {
+  .category-row-wrapper {
+    padding: 0 1rem !important;
+  }
+  .scroll-arrow {
+    display: none !important;
+  }
+}
+
+/* Browse Page Sidebar Filter layouts on smaller screens */
+.browse-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+@media (max-width: 1023.98px) {
+  .browse-sidebar {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 1.5rem !important;
+  }
+  .browse-sidebar > div {
+    flex: 1 1 200px !important;
+  }
+}
+
+/* Responsive 2-column form grid */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Responsive 3-column form grid */
+.form-grid-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Dashboard layouts (240px and 340px sidebars) */
+.dashboard-grid-240 {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 2rem;
+  align-items: start;
+}
+
+.dashboard-grid-340 {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Stats dashboard cards */
+.stats-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid-240,
+  .dashboard-grid-340 {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .form-grid-2col,
+  .form-grid-3col {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+}
+
 

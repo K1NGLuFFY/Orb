@@ -169,7 +169,7 @@ const RegisterPage = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-grid-2col">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Roster Role</label>
                 <select 

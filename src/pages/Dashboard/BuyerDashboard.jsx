@@ -140,11 +140,7 @@ const BuyerDashboard = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Quick Stats Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '1rem'
-            }}>
+            <div className="stats-grid-2col">
               <div style={{
                 background: 'var(--panel)',
                 border: '1px solid var(--hairline)',

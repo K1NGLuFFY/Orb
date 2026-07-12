@@ -355,7 +355,7 @@ const StaffDashboard = () => {
 
       {/* MODERATION TAB - Django Style */}
       {activeTab === 'moderation' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
+        <div className="dashboard-grid-240">
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
@@ -573,7 +573,7 @@ const StaffDashboard = () => {
 
       {/* USERS OPERATIONS TAB - Django Style */}
       {activeTab === 'users' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
+        <div className="dashboard-grid-240">
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             

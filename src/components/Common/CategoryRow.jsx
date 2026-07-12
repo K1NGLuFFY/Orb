@@ -23,8 +23,7 @@ const CategoryRow = ({ title, products }) => {
       className="category-row-wrapper" 
       style={{ 
         position: 'relative', 
-        marginBottom: '2.5rem', 
-        padding: '0 2.5rem' // Offset for the arrow buttons
+        marginBottom: '2.5rem'
       }}
     >
       {/* Self-contained CSS style block for scrollbar hiding and arrow visibility */}

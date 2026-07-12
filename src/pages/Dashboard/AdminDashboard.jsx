@@ -578,7 +578,7 @@ const AdminDashboard = () => {
 
       {/* USERS TAB - Django Admin Layout */}
       {activeTab === 'users' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
+        <div className="dashboard-grid-240">
           
           {/* Main Action + Table block */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -835,7 +835,7 @@ const AdminDashboard = () => {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '2rem', alignItems: 'start' }}>
+          <div className="dashboard-grid-240">
             
             {/* Main Action + Table block */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1136,7 +1136,7 @@ const AdminDashboard = () => {
 
       {/* STAFF MANAGEMENT TAB */}
       {activeTab === 'staff' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2rem', alignItems: 'start' }} className="staff-grid">
+        <div className="dashboard-grid-340 staff-grid">
           {/* List of curators */}
           <div className="table-scroll-wrapper" style={{ background: 'var(--panel)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', textAlign: 'left' }}>
@@ -1222,7 +1222,7 @@ const AdminDashboard = () => {
 
       {/* ANNOUNCEMENTS TAB */}
       {activeTab === 'announcements' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2rem', alignItems: 'start' }} className="staff-grid">
+        <div className="dashboard-grid-340 staff-grid">
           {/* Announcements list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {announcements.map(ann => (
@@ -1356,7 +1356,7 @@ const AdminDashboard = () => {
             </div>
 
             <form onSubmit={handleProductEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Category</label>
                   <select 
@@ -1417,7 +1417,7 @@ const AdminDashboard = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Genre</label>
                   <input 
@@ -1441,7 +1441,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-3col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Language</label>
                   <input 

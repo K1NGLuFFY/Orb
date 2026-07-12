@@ -300,11 +300,7 @@ const SellerDashboard = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Grid of stats */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '1rem'
-            }}>
+            <div className="stats-grid-2col">
               <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', padding: '1.25rem', borderRadius: '6px' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
                   Items Listed
@@ -639,7 +635,7 @@ const SellerDashboard = () => {
             {/* Form */}
             <form onSubmit={handleProductSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Category</label>
                   <select 
@@ -705,7 +701,7 @@ const SellerDashboard = () => {
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Genre (Comma-separated)</label>
                   <input 
@@ -731,7 +727,7 @@ const SellerDashboard = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-3col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Language</label>
                   <input 

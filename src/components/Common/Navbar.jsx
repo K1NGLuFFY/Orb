@@ -20,7 +20,7 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
       : '1px solid var(--hairline)',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 2rem',
+    padding: 0,
     zIndex: 100,
     transition: 'background-color 0.3s ease, border-color 0.3s ease, top 0.3s ease'
   };

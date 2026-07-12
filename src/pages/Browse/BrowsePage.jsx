@@ -255,7 +255,7 @@ const BrowsePage = () => {
       `}</style>
       <Navbar />
       <div style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto' }} className="browse-layout">
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <aside className="browse-sidebar">
           <div>
             <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Categories</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
