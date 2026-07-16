@@ -42,31 +42,24 @@ const LoginPage = () => {
 
 
   return (
-    <div style={{
-      background: 'var(--ink)',
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: '2rem',
-      fontFamily: 'var(--font-body)'
-    }}>
-      
+    <div className="auth-page-container animate-fade-in-up">
       {/* Brand Back link */}
-      <Link to="/" style={{
-        fontFamily: 'var(--font-display)',
-        fontSize: '2rem',
-        color: 'var(--signal)',
-        marginBottom: '2rem',
-        textDecoration: 'none',
-        letterSpacing: '0.05em'
-      }}>
+      <Link 
+        to="/" 
+        className="display-title" 
+        style={{
+          fontSize: '2rem',
+          color: 'var(--signal)',
+          marginBottom: '2rem',
+          textDecoration: 'none',
+          letterSpacing: '0.05em'
+        }}
+      >
         ORBIT MARKETPLACE
       </Link>
 
       {/* Main card */}
-      <div className="login-card">
+      <div className="auth-card">
         {/* Spine design dot */}
         <div style={{
           position: 'absolute',
@@ -103,25 +96,25 @@ const LoginPage = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Email Address</label>
+          <div className="auth-form-group">
+            <label className="auth-label">Email Address</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="form-input"
+              className="auth-input"
               placeholder="e.g. buyer1@orbit.com"
               required
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Password</label>
+          <div className="auth-form-group">
+            <label className="auth-label">Password</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="form-input"
+              className="auth-input"
               placeholder="••••••••"
               required
             />

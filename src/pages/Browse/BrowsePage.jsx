@@ -46,7 +46,7 @@ const SkeletonCard = () => (
 
 const BrowsePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const [localProducts, setLocalProducts] = useState([]);
   const [popularProducts, setPopularProducts] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -247,59 +247,132 @@ const BrowsePage = () => {
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-          100% { opacity: 0.3; }
-        }
-      `}</style>
       <Navbar />
-      <div style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto' }} className="browse-layout">
+      <div className="browse-layout animate-fade-in-up">
+        {/* Sidebar Filters */}
         <aside className="browse-sidebar">
           <div>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Categories</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+              Categories
+            </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {['All', 'Anime', 'Manga', 'Book', 'Comic', 'Movie'].map(cat => {
                 const isSelected = selectedCategory === cat;
                 return (
-                  <button key={cat} onClick={() => handleCategorySelect(cat)} style={{ textAlign: 'left', background: isSelected ? 'var(--panel-raised)' : 'transparent', border: 'none', color: isSelected ? 'var(--text)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontWeight: isSelected ? 'bold' : 'normal', padding: '0.6rem 0.85rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: categoryColors[cat] || 'var(--signal)', opacity: isSelected ? 1 : 0.4 }} />
+                  <button 
+                    key={cat} 
+                    onClick={() => handleCategorySelect(cat)} 
+                    className={`category-pill ${isSelected ? 'active' : ''}`}
+                  >
+                    <span 
+                      style={{ 
+                        width: '6px', 
+                        height: '6px', 
+                        borderRadius: '50%', 
+                        backgroundColor: categoryColors[cat] || 'var(--signal)', 
+                        opacity: isSelected ? 1 : 0.4 
+                      }} 
+                    />
                     {cat === 'Book' ? 'Books' : cat === 'Comic' ? 'Comics' : cat === 'Movie' ? 'Movies' : cat}
                   </button>
                 );
               })}
             </div>
           </div>
+
           <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.05em' }}>Filter By</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+              Filter By
+            </h3>
+            
             <div className="form-group">
               <label className="form-label">Genre</label>
-              <select value={selectedGenre} onChange={(e) => setSelectedGenre(e.target.value)} className="form-select" style={{ cursor: 'pointer' }}>
+              <select 
+                value={selectedGenre} 
+                onChange={(e) => setSelectedGenre(e.target.value)} 
+                className="form-select" 
+                style={{ cursor: 'pointer' }}
+              >
                 {genres.map(genre => <option key={genre} value={genre}>{genre}</option>)}
               </select>
             </div>
-            <div className="form-group" style={{ marginTop: '1rem' }}>
+            
+            <div className="form-group" style={{ marginTop: '1.25rem' }}>
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Max Price</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>${priceRange.max}</span>
               </label>
-              <input type="range" min="0" max="100" value={priceRange.max} onChange={(e) => setPriceRange({ ...priceRange, max: parseFloat(e.target.value) })} style={{ width: '100%', accentColor: 'var(--signal)', background: 'var(--panel)', cursor: 'pointer' }} />
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={priceRange.max} 
+                onChange={(e) => setPriceRange({ ...priceRange, max: parseFloat(e.target.value) })} 
+                style={{ width: '100%', accentColor: 'var(--signal)', background: 'var(--panel)', cursor: 'pointer' }} 
+              />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1rem', cursor: 'pointer' }}>
-              <input type="checkbox" id="stock-check" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} style={{ accentColor: 'var(--signal)', width: '16px', height: '16px', cursor: 'pointer' }} />
-              <label htmlFor="stock-check" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>In Stock Only</label>
+            
+            {/* iOS Switch Toggle for stock availability */}
+            <div style={{ marginTop: '1.5rem' }}>
+              <div className="ios-toggle-container">
+                <span className="ios-switch">
+                  <input 
+                    type="checkbox" 
+                    id="stock-check" 
+                    checked={inStockOnly} 
+                    onChange={(e) => setInStockOnly(e.target.checked)} 
+                  />
+                  <span className="ios-slider" />
+                </span>
+                <label 
+                  htmlFor="stock-check" 
+                  style={{ 
+                    fontSize: '0.85rem', 
+                    color: 'var(--text-muted)', 
+                    cursor: 'pointer', 
+                    userSelect: 'none',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  In Stock Only
+                </label>
+              </div>
             </div>
           </div>
         </aside>
+
+        {/* Main Content Grid */}
         <main>
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
-              <input type="text" placeholder="Search titles, creators, genres..." value={searchQuery} onChange={handleSearchChange} className="form-input" style={{ paddingLeft: '1rem', fontSize: '1rem' }} />
-              {isSearching && <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--signal)' }}>FETCHING...</div>}
+              <input 
+                type="text" 
+                placeholder="Search titles, creators, genres..." 
+                value={searchQuery} 
+                onChange={handleSearchChange} 
+                className="form-input" 
+                style={{ paddingLeft: '1rem', fontSize: '1rem' }} 
+              />
+              {isSearching && (
+                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--signal)' }}>
+                  FETCHING...
+                </div>
+              )}
             </div>
             <div style={{ width: '180px' }}>
-              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); const newParams = new URLSearchParams(searchParams); newParams.set('sort', e.target.value); setSearchParams(newParams); }} className="form-select" style={{ cursor: 'pointer' }}>
+              <select 
+                value={sortBy} 
+                onChange={(e) => { 
+                  setSortBy(e.target.value); 
+                  const newParams = new URLSearchParams(searchParams); 
+                  newParams.set('sort', e.target.value); 
+                  setSearchParams(newParams); 
+                }} 
+                className="form-select" 
+                style={{ cursor: 'pointer' }}
+              >
                 <option value="newest">Sort: Newest</option>
                 <option value="oldest">Sort: Oldest</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -308,30 +381,36 @@ const BrowsePage = () => {
               </select>
             </div>
           </div>
+
           {error && (
             <div style={{ backgroundColor: 'rgba(255, 77, 109, 0.1)', border: '1px solid var(--spine-anime)', color: 'var(--spine-anime)', padding: '1rem', borderRadius: '4px', marginBottom: '1.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>⚠️ {error}</span>
               <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'var(--spine-anime)', cursor: 'pointer', fontSize: '1.1rem' }}>&times;</button>
             </div>
           )}
+
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase' }}>
             {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} of ${combinedProducts.length} catalog items`}
           </div>
+
           {loadingPopular ? (
-            <ProductGrid style={{ padding: '12px 0 24px 0' }}>
+            <ProductGrid>
               {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
             </ProductGrid>
           ) : filteredProducts.length > 0 ? (
-            <ProductGrid style={{ backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), var(--hairline) calc(100% - 2px))', backgroundSize: '100% 390px', padding: '12px 0 24px 0' }}>
+            <ProductGrid>
               {filteredProducts.map(product => <ProductCard key={product.id} product={product} />)}
             </ProductGrid>
           ) : (
             <div style={{ textAlign: 'center', padding: '6rem 2rem', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px', marginTop: '1rem' }}>
-              <p style={{ color: 'var(--text)', fontSize: '1.15rem', marginBottom: '0.5rem', fontFamily: 'var(--font-body)' }}>Nothing matches '{searchQuery || selectedCategory}'. Try a different search.</p>
+              <p style={{ color: 'var(--text)', fontSize: '1.15rem', marginBottom: '0.5rem', fontFamily: 'var(--font-body)' }}>
+                Nothing matches '{searchQuery || selectedCategory}'. Try a different search.
+              </p>
             </div>
           )}
         </main>
       </div>
+
       <footer style={{ padding: '2rem', borderTop: '1px solid var(--hairline)', backgroundColor: 'var(--panel)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'auto' }}>
         <span>&copy; 2026 Orbit Catalog. Live API Integration & Simulated local transaction framework.</span>
       </footer>

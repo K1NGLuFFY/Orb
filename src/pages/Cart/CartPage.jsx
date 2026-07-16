@@ -36,7 +36,7 @@ const CartPage = () => {
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
+
       {/* Navbar */}
       <Navbar />
 
@@ -45,11 +45,11 @@ const CartPage = () => {
         flex: 1,
         maxWidth: '1000px',
         width: '100%',
-        margin: 'clamp(1.5rem, 4vh, 3rem) auto',
-        padding: '0 clamp(1rem, 4vw, 2rem)',
+        margin: '0 auto',
+        padding: 'calc(56px + clamp(1.5rem, 4vh, 3rem)) clamp(1rem, 4vw, 2rem) clamp(1.5rem, 4vh, 3rem) clamp(1rem, 4vw, 2rem)',
         boxSizing: 'border-box'
       }}>
-        
+
         {/* Title */}
         <div style={{ marginBottom: '2.5rem' }}>
           <h1 className="display-title" style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>
@@ -62,7 +62,7 @@ const CartPage = () => {
 
         {cartItems.length > 0 ? (
           <div style={{ alignItems: 'start' }} className="cart-grid">
-            
+
             {/* 1. Items List */}
             <div style={{
               display: 'flex',
@@ -72,7 +72,7 @@ const CartPage = () => {
               {cartItems.map(item => {
                 const dotColor = categoryColors[item.category] || 'var(--text-muted)';
                 return (
-                  <div 
+                  <div
                     key={item.id}
                     className="cart-item-row"
                     style={{
@@ -92,9 +92,9 @@ const CartPage = () => {
                     }} />
 
                     {/* Thumbnail */}
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.title} 
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
                       className="cart-item-image"
                     />
 
@@ -130,7 +130,7 @@ const CartPage = () => {
 
                     {/* Quantity Controls */}
                     <div className="cart-item-quantity">
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.85rem', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
@@ -139,7 +139,7 @@ const CartPage = () => {
                       <span style={{ padding: '0 0.25rem', fontFamily: 'var(--font-mono)', minWidth: '24px', textAlign: 'center', fontSize: '0.85rem' }}>
                         {item.quantity}
                       </span>
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.stock}
                         style={{ background: 'none', border: 'none', color: 'var(--text)', padding: '0.4rem 0.75rem', cursor: item.quantity >= item.stock ? 'not-allowed' : 'pointer', opacity: item.quantity >= item.stock ? 0.3 : 1, fontSize: '0.85rem', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -156,7 +156,7 @@ const CartPage = () => {
                     </div>
 
                     {/* Remove button */}
-                    <button 
+                    <button
                       onClick={() => removeFromCart(item.id)}
                       className="cart-item-remove"
                       style={{
@@ -207,7 +207,7 @@ const CartPage = () => {
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={handleCheckoutRedirect}
                 className="btn btn-primary"
                 style={{ width: '100%', padding: '0.85rem 1rem' }}
@@ -215,8 +215,8 @@ const CartPage = () => {
                 Proceed to Checkout
               </button>
 
-              <Link 
-                to="/browse" 
+              <Link
+                to="/browse"
                 style={{
                   display: 'block',
                   textAlign: 'center',

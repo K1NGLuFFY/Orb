@@ -1,106 +1,121 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const Navbar = ({ transparent, scrolled, topOffset }) => {
+const Navbar = () => {
   const { currentUser, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
 
-  const navStyle = {
-    position: transparent ? 'fixed' : 'sticky',
-    top: topOffset || 0,
-    left: 0,
-    right: 0,
-    height: '70px',
-    backgroundColor: transparent
-      ? (scrolled ? 'var(--panel)' : 'transparent')
-      : 'var(--panel)',
-    borderBottom: transparent
-      ? (scrolled ? '1px solid var(--hairline)' : '1px solid transparent')
-      : '1px solid var(--hairline)',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 0,
-    zIndex: 100,
-    transition: 'background-color 0.3s ease, border-color 0.3s ease, top 0.3s ease'
+  // Scroll listener for border and shadow transitions
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Prevent page scroll when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+    return () => {
+      document.body.classList.remove('no-scroll');
+    };
+  }, [menuOpen]);
+
+  // Close menu on location change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location]);
+
+  const isHomepage = location.pathname === '/';
+  const navbarClass = `fixed-navbar ${scrolled ? 'scrolled' : ''} ${isHomepage ? 'homepage-nav' : ''}`;
+
+  // Helper function to apply the active class based on route paths and categories
+  const getLinkClass = (path, category = null) => {
+    const searchParams = new URLSearchParams(location.search);
+    const currentCategory = searchParams.get('category');
+
+    if (path === '/browse') {
+      if (category) {
+        return currentCategory === category ? 'active' : '';
+      } else {
+        return location.pathname === '/browse' && !currentCategory ? 'active' : '';
+      }
+    }
+
+    return location.pathname === path ? 'active' : '';
   };
 
   return (
-    <nav style={navStyle}>
+    <nav className={navbarClass}>
       <div className="navbar-container">
         {/* Logo */}
-        <Link to="/" className="navbar-logo">
+        <Link to="/" className="navbar-logo" onClick={() => setMenuOpen(false)}>
           <span className="navbar-logo-text">ORBIT</span>
-          <span className="navbar-logo-badge">V1.0</span>
+          <span className="navbar-logo-badge">V1.1</span>
         </Link>
 
-        {/* Hamburger button (mobile only) */}
-        <button
-          className="hamburger-btn navbar-hamburger"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-          style={{
-            width: '44px',
-            height: '44px',
-            padding: 0,
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '5px',
-            background: 'none',
-            border: '1px solid var(--hairline)',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}
-        >
-          <span className={'hamburger-line' + (menuOpen ? ' open-1' : '')}></span>
-          <span className={'hamburger-line' + (menuOpen ? ' open-2' : '')}></span>
-          <span className={'hamburger-line' + (menuOpen ? ' open-3' : '')}></span>
-        </button>
-
-        {/* Nav links + auth - collapsible on mobile */}
-        <div className={'navbar-menu' + (menuOpen ? ' open' : '')}>
-          {/* Links */}
+        {/* Collapsible drawer container and links */}
+        <div className={`navbar-menu mobile-drawer ${menuOpen ? 'is-open' : ''}`}>
           <div className="navbar-links">
-            <Link to="/browse" onClick={() => setMenuOpen(false)}>Browse</Link>
-            <Link to="/browse?category=Book" onClick={() => setMenuOpen(false)}>Books</Link>
-            <Link to="/browse?category=Anime" onClick={() => setMenuOpen(false)}>Anime</Link>
-            <Link to="/cart" onClick={() => setMenuOpen(false)}>Cart</Link>
+            <Link 
+              to="/browse" 
+              className={getLinkClass('/browse')} 
+              onClick={() => setMenuOpen(false)}
+            >
+              Browse
+            </Link>
+            <Link 
+              to="/browse?category=Book" 
+              className={getLinkClass('/browse', 'Book')} 
+              onClick={() => setMenuOpen(false)}
+            >
+              Books
+            </Link>
+            <Link 
+              to="/browse?category=Anime" 
+              className={getLinkClass('/browse', 'Anime')} 
+              onClick={() => setMenuOpen(false)}
+            >
+              Anime
+            </Link>
+            <Link 
+              to="/cart" 
+              className={getLinkClass('/cart')} 
+              onClick={() => setMenuOpen(false)}
+            >
+              Cart
+            </Link>
           </div>
 
-          {/* Auth CTA */}
           <div className="navbar-auth">
             {currentUser ? (
               <>
                 <Link
                   to="/dashboard"
                   className="btn btn-secondary"
-                  style={{
-                    padding: '0.5rem 1rem',
-                    fontSize: '0.85rem',
-                    minHeight: '44px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
+                  style={{ padding: '0.4rem 1.25rem', fontSize: '0.85rem' }}
                   onClick={() => setMenuOpen(false)}
                 >
                   Dashboard
                 </Link>
                 <button
                   onClick={() => { logout(); setMenuOpen(false); }}
-                  className="btn"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
+                  className="btn btn-secondary"
+                  style={{ 
+                    background: 'transparent', 
+                    borderColor: 'transparent',
                     color: 'var(--text-muted)',
                     fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    minHeight: '44px',
-                    padding: '0.5rem 1rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    padding: '0.4rem 1rem'
                   }}
                 >
                   Log Out
@@ -110,31 +125,14 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
               <>
                 <Link
                   to="/login"
-                  style={{
-                    color: 'var(--text)',
-                    fontSize: '0.9rem',
-                    fontWeight: '500',
-                    minHeight: '44px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0.5rem 1rem'
-                  }}
+                  className="login-btn-link"
                   onClick={() => setMenuOpen(false)}
                 >
                   Log In
                 </Link>
                 <Link
                   to="/register"
-                  className="btn btn-primary"
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    fontSize: '0.85rem',
-                    minHeight: '44px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
+                  className="btn btn-primary register-btn-link"
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign Up
@@ -143,15 +141,24 @@ const Navbar = ({ transparent, scrolled, topOffset }) => {
             )}
           </div>
         </div>
+
+        {/* Hamburger Menu Toggle Button */}
+        <button
+          className={`hamburger-btn navbar-hamburger ${menuOpen ? 'active' : ''}`}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span className={`hamburger-line ${menuOpen ? 'open-1' : ''}`} />
+          <span className={`hamburger-line ${menuOpen ? 'open-2' : ''}`} />
+          <span className={`hamburger-line ${menuOpen ? 'open-3' : ''}`} />
+        </button>
       </div>
 
-      {/* Mobile backdrop */}
-      {menuOpen && (
-        <div
-          className="navbar-backdrop"
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
+      {/* Slide drawer overlay backdrop */}
+      <div
+        className={`drawer-backdrop ${menuOpen ? 'is-open' : ''}`}
+        onClick={() => setMenuOpen(false)}
+      />
     </nav>
   );
 };

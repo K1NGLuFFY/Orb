@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 const categoryColors = {
@@ -9,279 +9,130 @@ const categoryColors = {
   Movie: 'var(--spine-movies)'
 };
 
-const HeroBanner = ({ product }) => {
-  const [adaptiveColor, setAdaptiveColor] = useState('var(--signal)');
-  const [scrollY, setScrollY] = useState(0);
+const HeroBanner = ({ product, products }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  // 1. Scroll parallax hook
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // 2. Canvas dominant color extraction hook
-  useEffect(() => {
-    if (!product) return;
-
-    const fallbackColor = categoryColors[product.category] || 'var(--signal)';
-    setAdaptiveColor(fallbackColor);
-
-    if (!product.imageUrl) return;
-
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.src = product.imageUrl;
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-
-        // Boost visibility of dark colors
-        let [nr, ng, nb] = [r, g, b];
-        const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-        if (brightness < 60) {
-          nr = Math.min(255, r + 70);
-          ng = Math.min(255, g + 70);
-          nb = Math.min(255, b + 70);
-        }
-
-        setAdaptiveColor(`rgb(${nr}, ${ng}, ${nb})`);
-      } catch (err) {
-        console.warn('Canvas color extraction blocked or failed:', err);
-        setAdaptiveColor(fallbackColor);
+  // Select the top 5 featured items for the homepage carousel (cinematic only)
+  const featuredItems = useMemo(() => {
+    if (products && products.length > 0) {
+      // Filter out print media (Books, Comics, Manga) to display only cinematic items (Movies, Anime)
+      const cinematicProducts = products.filter(p => 
+        p.category?.toLowerCase() === 'movie' || 
+        p.category?.toLowerCase() === 'anime'
+      );
+      const withImages = cinematicProducts.filter(p => p.imageUrl && p.imageUrl.trim() !== '');
+      if (withImages.length > 0) {
+        // Sort by rating descending to show the best content, then slice 5
+        return [...withImages].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 5);
       }
-    };
+      return cinematicProducts.slice(0, 5);
+    }
+    if (product) {
+      const isCinematic = product.category?.toLowerCase() === 'movie' || product.category?.toLowerCase() === 'anime';
+      return isCinematic ? [product] : [];
+    }
+    return [];
+  }, [products, product]);
 
-    img.onerror = () => {
-      setAdaptiveColor(fallbackColor);
-    };
-  }, [product]);
+  // Handle auto-rotation
+  useEffect(() => {
+    if (isPaused || featuredItems.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % featuredItems.length);
+    }, 6000); // 6s rotation speed
+    return () => clearInterval(interval);
+  }, [isPaused, featuredItems.length]);
 
-  if (!product) {
+  if (featuredItems.length === 0) {
     return (
-      <div style={{ height: '65vh', background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <section className="cinematic-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)', animation: 'pulse 1.5s infinite' }}>
-          LOADING DOSSIER FEATURE...
+          LOADING FEATURE DOSSIERS...
         </div>
-      </div>
+      </section>
     );
   }
 
-  // Determine high contrast CTA button text color based on accent brightness
-  const rgbValues = adaptiveColor.match(/\d+/g);
-  const isLightAccent = rgbValues
-    ? parseInt(rgbValues[0]) * 0.299 + parseInt(rgbValues[1]) * 0.587 + parseInt(rgbValues[2]) * 0.114 > 140
-    : false;
-  const buttonTextColor = isLightAccent ? '#0d0e10' : '#ffffff';
-
   return (
-    <div style={{
-      width: '100%',
-      height: '65vh',
-      position: 'relative',
-      overflow: 'hidden',
-      borderBottom: '1px solid var(--hairline)',
-      display: 'flex',
-      alignItems: 'flex-end',
-      background: 'var(--ink)'
-    }} className="hero-banner">
+    <section 
+      className="cinematic-hero"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {featuredItems.map((item, idx) => {
+        const isActive = idx === currentIndex;
+        const spineColor = categoryColors[item.category] || 'var(--signal)';
+        
+        return (
+          <div key={item.id} className={`hero-slide ${isActive ? 'active' : ''}`}>
+            {/* 1. The Full-Bleed Background Image */}
+            <div className="hero-bg-wrapper">
+              <img src={item.imageUrl || FALLBACK_IMAGE} className="hero-bg-image" alt="Backdrop" />
+              {/* 2. The Vignette & Bottom Fade Gradients */}
+              <div className="hero-vignette-left" />
+              <div className="hero-fade-bottom" />
+            </div>
 
-      {/* Global CSS Inject for looping Ken Burns effect */}
-      <style>{`
-        @keyframes kenburns-zoom {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.06); }
-          100% { transform: scale(1); }
-        }
-        .kenburns-bg {
-          animation: kenburns-zoom 25s infinite ease-in-out;
-        }
-      `}</style>
+            {/* 3. The Content Layer (Text on left, Crisp Poster on right) */}
+            <div className="hero-content-layer">
+              <div className="hero-text-block">
+                <div className="hero-badge-container" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+                  <span className="accent-bar" style={{ display: 'inline-block', width: '4px', height: '14px', backgroundColor: spineColor }} />
+                  <span className="hero-badge" style={{ color: spineColor }}>
+                    {item.category}
+                  </span>
+                </div>
+                
+                <h1 className="hero-title">{item.title}</h1>
+                
+                <div className="hero-meta">
+                  <span>{item.releaseYear || '2026'}</span>
+                  <span className="rating">★ {item.rating ? item.rating.toFixed(1) : '0.0'}</span>
+                </div>
 
-      {/* Parallax outer wrapper + Ken Burns inner cover */}
-      <div style={{
-        position: 'absolute',
-        top: '-10%',
-        left: 0,
-        right: 0,
-        height: '120%', // Buffer space prevents edge leakage on translation
-        transform: `translateY(${scrollY * 0.3}px)`, // Parallax translation
-        transition: 'transform 0.05s linear',
-        zIndex: 0
-      }}>
-        <div 
-          className="kenburns-bg"
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundImage: `url(${product.imageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 30%',
-            transition: 'background-image 0.5s ease-in-out'
-          }}
-        />
-      </div>
+                <p className="hero-description">{item.description}</p>
+                
+                <div className="hero-actions">
+                  <Link
+                    to={`/product/${item.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Details
+                  </Link>
+                  <Link
+                    to={`/product/${item.id}`}
+                    className="btn btn-secondary"
+                  >
+                    More Info
+                  </Link>
+                </div>
+              </div>
 
-      {/* Immersive Dark Gradient Overlays */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(to top, var(--ink) 0%, rgba(10, 10, 10, 0.4) 50%, rgba(10, 10, 10, 0.8) 100%)',
-        pointerEvents: 'none',
-        zIndex: 1
-      }} />
+              {/* Right: The Sharp, Un-stretched Poster */}
+              <div className="hero-poster-block">
+                <img src={item.imageUrl || FALLBACK_IMAGE} alt="Poster" className="hero-crisp-poster" />
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(to right, rgba(10, 10, 10, 0.95) 0%, rgba(10, 10, 10, 0.6) 40%, transparent 100%)',
-        pointerEvents: 'none',
-        zIndex: 2
-      }} />
-
-      {/* Grid lines pattern overlay */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundImage: 'radial-gradient(var(--hairline) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-        opacity: 0.15,
-        pointerEvents: 'none',
-        zIndex: 3
-      }} />
-
-      {/* Content Block */}
-      <div style={{
-        position: 'relative',
-        zIndex: 10,
-        maxWidth: '650px',
-        margin: '0 auto clamp(1.5rem, 6vw, 4rem) clamp(1rem, 6vw, 4rem)',
-        paddingRight: 'clamp(1rem, 4vw, 2rem)',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
-        {/* Category tag indicator with dynamic adaptive color */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
-          <span style={{ width: '4px', height: '14px', backgroundColor: adaptiveColor }} />
-          <span style={{ 
-            color: adaptiveColor, 
-            fontSize: '0.8rem', 
-            fontWeight: 'bold', 
-            textTransform: 'uppercase', 
-            letterSpacing: '0.15em', 
-            fontFamily: 'var(--font-mono)' 
-          }}>
-            {product.category}
-          </span>
+      {/* Carousel Dot Indicators */}
+      {featuredItems.length > 1 && (
+        <div className="hero-indicators">
+          {featuredItems.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className={`hero-indicator-dot ${idx === currentIndex ? 'active' : ''}`}
+              onClick={() => setCurrentIndex(idx)}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
         </div>
-
-        {/* Big Bold Headline in display font */}
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(2.2rem, 7vw, 3.5rem)',
-          fontWeight: '900',
-          textTransform: 'uppercase',
-          color: 'var(--text)',
-          margin: '0 0 1rem 0',
-          lineHeight: '1.05',
-          letterSpacing: '-0.02em',
-          textShadow: '0 4px 16px rgba(0,0,0,0.9)'
-        }}>
-          {product.title}
-        </h1>
-
-        {/* Truncated description */}
-        <p style={{
-          color: 'var(--text-muted)',
-          fontSize: 'clamp(0.95rem, 2vw, 1.05rem)',
-          lineHeight: '1.6',
-          margin: '0 0 2rem 0',
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          textShadow: '0 2px 8px rgba(0,0,0,0.7)'
-        }}>
-          {product.description}
-        </p>
-
-        {/* CTA Action Buttons */}
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link 
-            to={`/product/${product.id}`} 
-            className="btn btn-primary"
-            style={{ 
-              padding: '0.8rem 2rem', 
-              fontSize: '0.95rem',
-              fontWeight: 'bold',
-              borderRadius: '4px',
-              backgroundColor: adaptiveColor,
-              color: buttonTextColor,
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '44px',
-              transition: 'transform 0.2s, box-shadow 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.03)';
-              e.currentTarget.style.boxShadow = `0 0 16px ${adaptiveColor}80`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            View Details
-          </Link>
-          <Link 
-            to={`/product/${product.id}`} 
-            style={{ 
-              padding: '0.8rem 2rem', 
-              fontSize: '0.95rem',
-              fontWeight: 'bold',
-              borderRadius: '4px',
-              border: `1px solid ${adaptiveColor}`,
-              color: 'var(--text)',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '44px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${adaptiveColor}15`;
-              e.currentTarget.style.borderColor = 'var(--text)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.borderColor = adaptiveColor;
-            }}
-          >
-            More Info
-          </Link>
-        </div>
-      </div>
-    </div>
+      )}
+    </section>
   );
 };
 

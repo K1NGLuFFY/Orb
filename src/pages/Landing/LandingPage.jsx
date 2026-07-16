@@ -14,7 +14,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [announcementTicker, setAnnouncementTicker] = useState('');
-  
+
   // Data states
   const [localProducts, setLocalProducts] = useState([]);
   const [popularProducts, setPopularProducts] = useState([]);
@@ -114,36 +114,22 @@ const LandingPage = () => {
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Announcement Ticker Banner */}
-      {announcementTicker && (
-        <div style={{
-          backgroundColor: 'var(--signal)',
-          color: 'var(--signal-text)',
-          fontSize: '0.8rem',
-          fontWeight: 'bold',
-          fontFamily: 'var(--font-mono)',
-          padding: '0.4rem 1rem',
-          textAlign: 'center',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 110,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}>
-          {announcementTicker}
-        </div>
-      )}
 
-      {/* 1. TOP NAV */}
-      <Navbar transparent scrolled={scrolled} topOffset={announcementTicker ? '29px' : 0} />
+      {/* 1. FIXED NAVBAR */}
+      <Navbar />
 
-      {/* 2. IMMERSIVE HERO BANNER */}
-      <div style={{ paddingTop: announcementTicker ? '29px' : '0px' }}>
-        <HeroBanner product={featuredItem} />
+      {/* 2. PAGE LAYOUT WRAPPER */}
+      <div className="landing-layout animate-fade-in-up">
+        
+        {/* Announcement Ticker Banner (flows underneath Navbar, scrolls away naturally) */}
+        {announcementTicker && (
+          <div className="announcement-banner">
+            {announcementTicker}
+          </div>
+        )}
+
+        {/* 3. IMMERSIVE HERO BANNER */}
+        <HeroBanner products={combinedProducts} />
       </div>
 
       {/* Pulse Keyframes style */}
@@ -197,9 +183,9 @@ const LandingPage = () => {
             EXPAND YOUR SHELF TODAY
           </h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1.05rem' }}>
-            Join a clean, client-side, zero-database marketplace dedicated to high-quality print and media preservation. 
+            Join a clean, client-side, zero-database marketplace dedicated to high-quality print and media preservation.
           </p>
-          <button 
+          <button
             onClick={() => navigate('/browse')}
             className="btn btn-primary"
             style={{ fontSize: '1.05rem', padding: '1rem 2.5rem' }}
