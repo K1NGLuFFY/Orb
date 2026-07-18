@@ -48,8 +48,9 @@ Orbit features a role-based permissions model. System boundaries are enforced vi
 ### 👤 Buyer Features
 *   **Live Multi-Source Search:** Browse and search catalog listings. Queries query local database items alongside live browser-side requests fetching titles dynamically from:
     *   *TMDB API* for Movies & TV shows.
-    *   *Jikan API (MyAnimeList)* for Anime.
-    *   *Google Books API* for literature and books.
+    *   *Jikan API (MyAnimeList)* for Anime & Manga.
+    *   *Google Books API* for Books & Comics.
+    *   *Open Library API* as a fallback/supplementary source for Comics.
 *   **Shelved Cart & Wishlist:** Manage personal items. Add database catalog listings or external API products to the cart and wishlist.
 *   **Role-Guarded Checkout Flow:** Place orders through a guided transaction screen. The system validates availability and atomically decrements product inventory.
 *   **Account Controls:** Modify profile settings (name, email, password) or permanently delete the account (utilizing soft-deletion to anonymize the username while preserving historical order logs).
@@ -80,9 +81,10 @@ Orbit features a role-based permissions model. System boundaries are enforced vi
     *   **Realtime Stock Subscriptions:** Subscribes to PostgreSQL database updates (`postgres_changes`) on the `products` table to update quantities on the Browse and Detail pages immediately.
     *   **Postgres RPC Procedures:** Processes database actions like `decrement_stock` (atomic transaction validation) and `delete_own_account` (soft deletion).
 *   **External Catalog APIs:**
-    *   *The Movie Database (TMDB) API*
-    *   *Jikan API (Unofficial MyAnimeList API)*
-    *   *Google Books API*
+    *   *The Movie Database (TMDB) API* for Movies & TV shows.
+    *   *Jikan API (Unofficial MyAnimeList API)* for Anime & Manga.
+    *   *Google Books API* for Books & Comics.
+    *   *Open Library API* for Comics (as fallback/supplementary source).
 *   **Development Linter:** Oxlint (integrated for rapid diagnostics)
 *   **Bundle Analytics:** Rollup Bundle Visualizer (compiles size logs to `stats.html`)
 *   **Hosting:** Vercel
@@ -293,8 +295,10 @@ orbit/
 │   │   └── Register/
 │   │       └── RegisterPage.jsx
 │   ├── services/
+│   │   ├── comicApi.js
 │   │   ├── googleBooksApi.js
 │   │   ├── jikanApi.js
+│   │   ├── mangaApi.js
 │   │   └── tmdbApi.js
 │   ├── utils/
 │   │   ├── crypto.js
@@ -326,7 +330,7 @@ orbit/
 2.  **Omitted Fields during Inventory Writes:**
     The catalog editor panels on the Seller and Admin dashboards include fields for `creator`, `description`, `releaseYear`, and `language`. However, the insert and update methods targeting the Supabase database omit these parameters, writing only `title`, `category`, `genre`, `price`, `stock`, and `image_url` fields. Any updates to the developer/author/release metadata must be handled directly through the database editor.
 3.  **Third-Party API Item Persistence:**
-    Movies, Books, and Anime titles fetched live from external APIs (TMDB, Google Books, Jikan) cannot be stored in the database's `cart_items` or `wishlist_items` tables due to lack of entry keys on the `products` table. As a result, adding API items to the cart stores them in React memory state only; they will disappear if the page is refreshed.
+    Movies, Books, Anime, Manga, and Comic titles fetched live from external APIs (TMDB, Google Books, Jikan, Open Library) cannot be stored in the database's `cart_items` or `wishlist_items` tables due to lack of entry keys on the `products` table. As a result, adding API items to the cart stores them in React memory state only; they will disappear if the page is refreshed.
 4.  **Mocked Payments:**
     The checkout flow executes stock inventory adjustments atomically but does not support actual banking or payment gateways (payment processing is mocked).
 5.  **Local Storage Live Activity Ticker Cache:**
