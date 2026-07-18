@@ -7,16 +7,14 @@ import CategoryRow from '../../components/Common/CategoryRow';
 import { getMovieDetails, getPopularMovies } from '../../services/tmdbApi';
 import { getAnimeDetails, getPopularAnime } from '../../services/jikanApi';
 import { getBookDetails, getPopularBooks } from '../../services/googleBooksApi';
+import { getMangaDetails } from '../../services/mangaApi';
+import { getComicDetails } from '../../services/comicApi';
 import { FALLBACK_IMAGE } from '../../components/Common/ProductCard';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 import { supabase } from '../../lib/supabaseClient';
 
 const isApiProduct = (productId) =>
-  typeof productId === 'string' && (
-    productId.startsWith('api-movie-') ||
-    productId.startsWith('api-anime-') ||
-    productId.startsWith('api-book-')
-  );
+  typeof productId === 'string' && productId.startsWith('api-');
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -84,6 +82,12 @@ const ProductDetailsPage = () => {
             if (active && apiProduct) setProduct(apiProduct);
           } else if (id.startsWith('api-book-')) {
             const apiProduct = await getBookDetails(id, controller.signal);
+            if (active && apiProduct) setProduct(apiProduct);
+          } else if (id.startsWith('api-manga-')) {
+            const apiProduct = await getMangaDetails(id, controller.signal);
+            if (active && apiProduct) setProduct(apiProduct);
+          } else if (id.startsWith('api-comic-')) {
+            const apiProduct = await getComicDetails(id, controller.signal);
             if (active && apiProduct) setProduct(apiProduct);
           }
         }
@@ -234,7 +238,7 @@ const ProductDetailsPage = () => {
     }
   };
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = async () => {
     if (!currentUser) {
       showFeedback('Please log in to wishlist items.', 'error');
       setTimeout(() => navigate('/login'), 1500);
@@ -247,11 +251,19 @@ const ProductDetailsPage = () => {
     }
 
     if (isWishlisted) {
-      removeFromWishlist(product.id);
-      showFeedback('Removed from your wishlist.');
+      const success = await removeFromWishlist(product.id, product.title);
+      if (success !== false) {
+        showFeedback('Removed from your wishlist.');
+      } else {
+        showFeedback('Failed to remove from wishlist. Please try again.', 'error');
+      }
     } else {
-      addToWishlist(product.id);
-      showFeedback('Added to your wishlist!');
+      const success = await addToWishlist(product.id, product.title);
+      if (success) {
+        showFeedback('Added to your wishlist!');
+      } else {
+        showFeedback('Failed to add to wishlist. Please try again.', 'error');
+      }
     }
   };
 

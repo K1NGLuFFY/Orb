@@ -7,6 +7,8 @@ import Navbar from '../../components/Common/Navbar';
 import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
 import { getPopularAnime, searchAnime } from '../../services/jikanApi';
 import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
+import { getPopularManga, searchManga } from '../../services/mangaApi';
+import { getPopularComics, searchComics } from '../../services/comicApi';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 
 const categoryColors = {
@@ -74,6 +76,8 @@ const BrowsePage = () => {
   useProductStockSubscription(handleStockUpdate, localProducts.length > 0);
   const [moviesBooksSearching, setMoviesBooksSearching] = useState(false);
   const [animeSearching, setAnimeSearching] = useState(false);
+  const [mangaSearching, setMangaSearching] = useState(false);
+  const [comicsSearching, setComicsSearching] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -105,7 +109,9 @@ const BrowsePage = () => {
       const results = await Promise.allSettled([
         getPopularMovies(controller.signal),
         getPopularAnime(controller.signal),
-        getPopularBooks(controller.signal)
+        getPopularBooks(controller.signal),
+        getPopularManga(controller.signal),
+        getPopularComics(controller.signal)
       ]);
       if (!active) return;
       const popular = [];
@@ -131,13 +137,20 @@ const BrowsePage = () => {
       setSearchResults([]);
       setMoviesBooksSearching(false);
       setAnimeSearching(false);
+      setMangaSearching(false);
+      setComicsSearching(false);
       return;
     }
     setMoviesBooksSearching(true);
     setAnimeSearching(true);
+    setMangaSearching(true);
+    setComicsSearching(true);
     setError(null);
     const movieBookController = new AbortController();
     const animeController = new AbortController();
+    const mangaController = new AbortController();
+    const comicsController = new AbortController();
+    
     const movieBookTimer = setTimeout(async () => {
       try {
         const [movies, books] = await Promise.all([
@@ -151,6 +164,7 @@ const BrowsePage = () => {
       } catch (err) { if (err.name !== 'AbortError') console.error(err); }
       finally { setMoviesBooksSearching(false); }
     }, 450);
+    
     const animeTimer = setTimeout(async () => {
       try {
         const anime = await searchAnime(searchQuery, animeController.signal);
@@ -161,7 +175,39 @@ const BrowsePage = () => {
       } catch (err) { if (err.name !== 'AbortError') console.error(err); }
       finally { setAnimeSearching(false); }
     }, 600);
-    return () => { clearTimeout(movieBookTimer); clearTimeout(animeTimer); movieBookController.abort(); animeController.abort(); };
+
+    const mangaTimer = setTimeout(async () => {
+      try {
+        const manga = await searchManga(searchQuery, mangaController.signal);
+        setSearchResults(prev => {
+          const nonManga = prev.filter(p => p.category !== 'Manga');
+          return [...nonManga, ...manga];
+        });
+      } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+      finally { setMangaSearching(false); }
+    }, 600);
+
+    const comicsTimer = setTimeout(async () => {
+      try {
+        const comics = await searchComics(searchQuery, comicsController.signal);
+        setSearchResults(prev => {
+          const nonComics = prev.filter(p => p.category !== 'Comic');
+          return [...nonComics, ...comics];
+        });
+      } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+      finally { setComicsSearching(false); }
+    }, 450);
+    
+    return () => {
+      clearTimeout(movieBookTimer);
+      clearTimeout(animeTimer);
+      clearTimeout(mangaTimer);
+      clearTimeout(comicsTimer);
+      movieBookController.abort();
+      animeController.abort();
+      mangaController.abort();
+      comicsController.abort();
+    };
   }, [searchQuery]);
 
   // Deep text normalization: lowercase, strip accents (NFD), remove diacritics
@@ -243,7 +289,7 @@ const BrowsePage = () => {
     setSearchParams(newParams);
   };
 
-  const isSearching = moviesBooksSearching || animeSearching;
+  const isSearching = moviesBooksSearching || animeSearching || mangaSearching || comicsSearching;
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

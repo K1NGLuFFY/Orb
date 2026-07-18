@@ -8,6 +8,8 @@ import CategoryRow from '../../components/Common/CategoryRow';
 import { getPopularMovies } from '../../services/tmdbApi';
 import { getPopularAnime } from '../../services/jikanApi';
 import { getPopularBooks } from '../../services/googleBooksApi';
+import { getPopularManga } from '../../services/mangaApi';
+import { getPopularComics } from '../../services/comicApi';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 
 const LandingPage = () => {
@@ -53,7 +55,9 @@ const LandingPage = () => {
           Promise.allSettled([
             getPopularMovies(controller.signal),
             getPopularAnime(controller.signal),
-            getPopularBooks(controller.signal)
+            getPopularBooks(controller.signal),
+            getPopularManga(controller.signal),
+            getPopularComics(controller.signal)
           ])
         ]);
 

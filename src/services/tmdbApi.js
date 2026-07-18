@@ -75,7 +75,7 @@ function normalizeMovie(item, index = 0) {
 
 function getLocalFallbacks(query = '') {
   const list = fallbackMovies.map((m, i) => ({
-    id: `prod-movie-${i + 1}`,
+    id: `api-movie-mock-${i + 1}`,
     title: `${m.title} Blu-ray`,
     category: 'Movie',
     creator: m.director,

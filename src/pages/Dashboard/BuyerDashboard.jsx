@@ -6,6 +6,17 @@ import { useCart } from '../../context/CartContext';
 import ProductCard from '../../components/Common/ProductCard';
 import { useDeleteAccount } from '../../hooks/useDeleteAccount';
 
+import { getMovieDetails } from '../../services/tmdbApi';
+import { getAnimeDetails } from '../../services/jikanApi';
+import { getBookDetails } from '../../services/googleBooksApi';
+
+const isApiProduct = (productId) =>
+  typeof productId === 'string' && (
+    productId.startsWith('api-movie-') ||
+    productId.startsWith('api-anime-') ||
+    productId.startsWith('api-book-')
+  );
+
 const BuyerDashboard = () => {
   const { currentUser, updateProfile } = useAuth();
   const { wishlist, removeFromWishlist } = useCart();
@@ -53,8 +64,53 @@ const BuyerDashboard = () => {
 
   // Sync wishlist list if state updates
   useEffect(() => {
-    const hydratedWishlist = products.filter(p => wishlist.includes(p.id));
-    setWishlistItems(hydratedWishlist);
+    let active = true;
+    async function hydrateWishlist() {
+      // 1. Filter database products
+      const dbWishlistItems = products.filter(p => wishlist.includes(p.id));
+
+      // 2. Identify API product IDs in wishlist
+      const apiProductIds = wishlist.filter(id => isApiProduct(id));
+
+      if (apiProductIds.length === 0) {
+        if (active) {
+          setWishlistItems(dbWishlistItems);
+        }
+        return;
+      }
+
+      // 3. Fetch API product details in parallel
+      try {
+        const apiFetches = apiProductIds.map(async (id) => {
+          try {
+            if (id.startsWith('api-movie-')) {
+              return await getMovieDetails(id);
+            } else if (id.startsWith('api-anime-')) {
+              return await getAnimeDetails(id);
+            } else if (id.startsWith('api-book-')) {
+              return await getBookDetails(id);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch details for API product ${id}:`, err);
+          }
+          return null;
+        });
+
+        const fetchedApiProducts = (await Promise.all(apiFetches)).filter(Boolean);
+
+        if (active) {
+          setWishlistItems([...dbWishlistItems, ...fetchedApiProducts]);
+        }
+      } catch (err) {
+        console.error('Error hydrating wishlist with API products:', err);
+        if (active) {
+          setWishlistItems(dbWishlistItems);
+        }
+      }
+    }
+
+    hydrateWishlist();
+    return () => { active = false; };
   }, [wishlist, products]);
 
   // Handle Profile Update

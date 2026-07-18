@@ -55,7 +55,7 @@ function normalizeBook(item, index = 0) {
 
 function getLocalFallbacks(query = '') {
   const list = fallbackBooks.map((b, i) => ({
-    id: `prod-book-${i + 1}`,
+    id: `api-book-mock-${i + 1}`,
     title: b.title,
     category: 'Book',
     creator: b.author,
@@ -96,6 +96,35 @@ function getApiKey() {
   return key;
 }
 
+function normalizeOpenLibraryBook(item, index = 0) {
+  const workId = item.key.split('/').pop();
+  const coverId = item.cover_i;
+  const imageUrl = coverId 
+    ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
+    : unsplashUrls[index % unsplashUrls.length];
+
+  const price = parseFloat((8.99 + (index * 1.63) % 20).toFixed(2));
+  const stock = (index * 7) % 15 + 3;
+  const rating = parseFloat((4.1 + (index * 0.13) % 0.9).toFixed(1));
+  const releaseYear = item.first_publish_year ? item.first_publish_year.toString() : 'N/A';
+
+  return {
+    id: `api-book-ol-${workId}`,
+    title: item.title || 'Untitled Fiction',
+    category: 'Book',
+    creator: item.author_name ? item.author_name.join(', ') : 'Unknown Author',
+    description: 'An open library cataloged novel.',
+    imageUrl,
+    genre: item.subject ? item.subject.slice(0, 3).join(', ') : 'Fiction',
+    releaseYear,
+    language: 'English',
+    price,
+    stock,
+    rating,
+    createdAt: new Date(new Date('2026-06-09T08:00:00Z').getTime() + index * 6 * 3600 * 1000).toISOString()
+  };
+}
+
 export async function getPopularBooks(signal) {
   const apiKey = getApiKey();
   const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
@@ -111,7 +140,20 @@ export async function getPopularBooks(signal) {
     return (data.items || []).map((item, idx) => normalizeBook(item, idx));
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    console.error('Failed to fetch popular books from Google Books API:', err);
+    console.error('Failed to fetch popular books from Google Books API, trying Open Library:', err);
+    return getPopularBooksFromOpenLibrary(signal);
+  }
+}
+
+async function getPopularBooksFromOpenLibrary(signal) {
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&limit=20`, { signal });
+    if (!res.ok) throw new Error(`Open Library status ${res.status}`);
+    const data = await res.json();
+    return (data.docs || []).map((item, idx) => normalizeOpenLibraryBook(item, idx));
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    console.error('Failed to fetch popular books from Open Library, falling back to seed data:', err);
     return getLocalFallbacks();
   }
 }
@@ -140,17 +182,37 @@ export async function searchBooks(query, signal) {
     return results;
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    console.error('Failed to search books from Google Books API:', err);
+    console.error(`Failed to search books from Google Books API for "${query}", trying Open Library:`, err);
+    return searchBooksFromOpenLibrary(query, signal);
+  }
+}
+
+async function searchBooksFromOpenLibrary(query, signal) {
+  const normalizedQuery = query.trim().toLowerCase();
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`, { signal });
+    if (!res.ok) throw new Error(`Open Library search status ${res.status}`);
+    const data = await res.json();
+    const results = (data.docs || []).map((item, idx) => normalizeOpenLibraryBook(item, idx));
+    searchCache.set(normalizedQuery, results);
+    return results;
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    console.error(`Failed to search books from Open Library for "${query}", falling back to seed data:`, err);
     return getLocalFallbacks(query);
   }
 }
 
 export async function getBookDetails(id, signal) {
-  const apiId = id.replace('api-book-', '');
-  if (detailsCache.has(apiId)) {
-    return detailsCache.get(apiId);
+  if (detailsCache.has(id)) {
+    return detailsCache.get(id);
   }
 
+  if (id.startsWith('api-book-ol-')) {
+    return getBookDetailsFromOpenLibrary(id, signal);
+  }
+
+  const apiId = id.replace('api-book-', '');
   const apiKey = getApiKey();
   const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
   const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
@@ -163,11 +225,51 @@ export async function getBookDetails(id, signal) {
     if (!res.ok) throw new Error(`Google Books detail status ${res.status}`);
     const data = await res.json();
     const result = normalizeBook(data);
-    detailsCache.set(apiId, result);
+    detailsCache.set(id, result);
     return result;
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    console.error('Failed to fetch book details from Google Books API:', err);
+    console.error(`Failed to fetch book details from Google Books API for "${id}", trying Open Library:`, err);
+    return getBookDetailsFromOpenLibrary(id, signal);
+  }
+}
+
+async function getBookDetailsFromOpenLibrary(id, signal) {
+  const workId = id.replace('api-book-ol-', '').replace('api-book-', '');
+  try {
+    const res = await fetch(`https://openlibrary.org/works/${workId}.json`, { signal });
+    if (!res.ok) throw new Error(`Open Library detail status ${res.status}`);
+    const data = await res.json();
+    
+    const coverId = data.covers && data.covers.length > 0 ? data.covers.find(c => c > 0) : null;
+    const imageUrl = coverId 
+      ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
+      : unsplashUrls[0];
+    
+    const desc = data.description 
+      ? (typeof data.description === 'object' ? data.description.value : data.description)
+      : 'An open library cataloged novel.';
+
+    const result = {
+      id: `api-book-ol-${workId}`,
+      title: data.title || 'Untitled Book',
+      category: 'Book',
+      creator: 'Open Library Creator',
+      description: desc,
+      imageUrl,
+      genre: data.subjects ? data.subjects.slice(0, 3).join(', ') : 'Fiction',
+      releaseYear: data.created ? data.created.value.split('-')[0] : 'N/A',
+      language: 'English',
+      price: 12.99,
+      stock: 6,
+      rating: 4.3,
+      createdAt: new Date().toISOString()
+    };
+    detailsCache.set(id, result);
+    return result;
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    console.error(`Failed to fetch book details from Open Library for "${id}":`, err);
     const fallback = getLocalFallbacks().find(b => b.id === id) || getLocalFallbacks()[0];
     return fallback;
   }

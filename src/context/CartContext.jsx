@@ -67,7 +67,15 @@ export const CartProvider = ({ children }) => {
       }
 
       if (!wishlistRes.error && wishlistRes.data) {
-        setWishlist(wishlistRes.data.map(row => row.product_id));
+        const dbItems = wishlistRes.data.map(row => row.product_id);
+        const localKey = `wishlist_api_${currentUser.id}`;
+        let apiItems = [];
+        try {
+          apiItems = JSON.parse(localStorage.getItem(localKey) || '[]');
+        } catch (e) {
+          console.error('[CartContext] Failed to load api wishlist from localStorage:', e);
+        }
+        setWishlist([...dbItems, ...apiItems]);
       }
     } catch (err) {
       console.error('[CartContext] Failed to load cart/wishlist:', err);
@@ -206,7 +214,17 @@ export const CartProvider = ({ children }) => {
     }
 
     if (isApiProduct(productId)) {
-      // API products: state only (no FK reference available)
+      // API products: state only (no FK reference available), persist to localStorage
+      const localKey = `wishlist_api_${currentUser.id}`;
+      try {
+        const stored = JSON.parse(localStorage.getItem(localKey) || '[]');
+        if (!stored.includes(productId)) {
+          stored.push(productId);
+          localStorage.setItem(localKey, JSON.stringify(stored));
+        }
+      } catch (e) {
+        console.error('[CartContext] Failed to save api wishlist to localStorage:', e);
+      }
       setWishlist(prev => [...prev, productId]);
       showToast(`Added "${productTitle ?? 'Item'}" to wishlist.`, 'success');
       return true;
@@ -228,12 +246,20 @@ export const CartProvider = ({ children }) => {
 
   // ── REMOVE FROM WISHLIST ──────────────────────────────────────────────────
   const removeFromWishlist = async (productId, productTitle) => {
-    if (!currentUser) return;
+    if (!currentUser) return false;
 
     if (isApiProduct(productId)) {
+      const localKey = `wishlist_api_${currentUser.id}`;
+      try {
+        const stored = JSON.parse(localStorage.getItem(localKey) || '[]');
+        const updated = stored.filter(id => id !== productId);
+        localStorage.setItem(localKey, JSON.stringify(updated));
+      } catch (e) {
+        console.error('[CartContext] Failed to remove api wishlist from localStorage:', e);
+      }
       setWishlist(prev => prev.filter(id => id !== productId));
       showToast(`Removed "${productTitle ?? 'Item'}" from wishlist.`, 'info');
-      return;
+      return true;
     }
 
     const { error } = await supabase
@@ -242,10 +268,14 @@ export const CartProvider = ({ children }) => {
       .eq('user_id', currentUser.id)
       .eq('product_id', productId);
 
-    if (!error) {
-      setWishlist(prev => prev.filter(id => id !== productId));
-      showToast(`Removed "${productTitle ?? 'Item'}" from wishlist.`, 'info');
+    if (error) {
+      showToast('Failed to remove item. Please try again.', 'error');
+      return false;
     }
+
+    setWishlist(prev => prev.filter(id => id !== productId));
+    showToast(`Removed "${productTitle ?? 'Item'}" from wishlist.`, 'info');
+    return true;
   };
 
   const value = {
