@@ -121,7 +121,7 @@ export async function getPopularComics(signal) {
     const data = await res.json();
     return (data.items || []).map((item, idx) => normalizeGoogleComic(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular comics from Google Books API, falling back to Open Library:', err);
     return getPopularComicsFromOpenLibrary(signal);
   }
@@ -134,7 +134,7 @@ async function getPopularComicsFromOpenLibrary(signal) {
     const data = await res.json();
     return (data.docs || []).map((item, idx) => normalizeOpenLibraryComic(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular comics from Open Library, falling back to seed data:', err);
     return getLocalFallbacks();
   }
@@ -158,7 +158,7 @@ export async function searchComics(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to search comics from Google Books API for "${query}", falling back to Open Library:`, err);
     return searchComicsFromOpenLibrary(query, signal);
   }
@@ -174,7 +174,7 @@ async function searchComicsFromOpenLibrary(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to search comics from Open Library for "${query}", falling back to seed data:`, err);
     return getLocalFallbacks(query);
   }
@@ -200,7 +200,7 @@ export async function getComicDetails(id, signal) {
     detailsCache.set(id, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to fetch comic details from Google Books for "${id}":`, err);
     const fallback = getLocalFallbacks().find(c => c.id === id);
     if (fallback) return fallback;
@@ -243,7 +243,7 @@ async function getComicDetailsFromOpenLibrary(id, signal) {
     detailsCache.set(id, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to fetch comic details from Open Library for "${id}":`, err);
     const fallback = getLocalFallbacks().find(c => c.id === id);
     if (fallback) return fallback;

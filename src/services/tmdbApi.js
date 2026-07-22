@@ -112,7 +112,7 @@ export async function getPopularMovies(signal) {
     const data = await res.json();
     return (data.results || []).slice(0, 20).map((item, idx) => normalizeMovie(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular movies from TMDB API:', err);
     return getLocalFallbacks();
   }
@@ -140,7 +140,7 @@ export async function searchMovies(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to search movies from TMDB API:', err);
     return getLocalFallbacks(query);
   }
@@ -168,7 +168,7 @@ export async function getMovieDetails(id, signal) {
     detailsCache.set(apiId, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch movie details:', err);
     // Try to find in cache or fallbacks
     const fallback = getLocalFallbacks().find(m => m.id === id);

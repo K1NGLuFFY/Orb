@@ -139,7 +139,7 @@ export async function getPopularBooks(signal) {
     const data = await res.json();
     return (data.items || []).map((item, idx) => normalizeBook(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular books from Google Books API, trying Open Library:', err);
     return getPopularBooksFromOpenLibrary(signal);
   }
@@ -152,7 +152,7 @@ async function getPopularBooksFromOpenLibrary(signal) {
     const data = await res.json();
     return (data.docs || []).map((item, idx) => normalizeOpenLibraryBook(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular books from Open Library, falling back to seed data:', err);
     return getLocalFallbacks();
   }
@@ -181,7 +181,7 @@ export async function searchBooks(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to search books from Google Books API for "${query}", trying Open Library:`, err);
     return searchBooksFromOpenLibrary(query, signal);
   }
@@ -197,7 +197,7 @@ async function searchBooksFromOpenLibrary(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to search books from Open Library for "${query}", falling back to seed data:`, err);
     return getLocalFallbacks(query);
   }
@@ -228,7 +228,7 @@ export async function getBookDetails(id, signal) {
     detailsCache.set(id, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to fetch book details from Google Books API for "${id}", trying Open Library:`, err);
     return getBookDetailsFromOpenLibrary(id, signal);
   }
@@ -268,7 +268,7 @@ async function getBookDetailsFromOpenLibrary(id, signal) {
     detailsCache.set(id, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to fetch book details from Open Library for "${id}":`, err);
     const fallback = getLocalFallbacks().find(b => b.id === id) || getLocalFallbacks()[0];
     return fallback;

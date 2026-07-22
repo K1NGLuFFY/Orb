@@ -1336,6 +1336,7 @@ img {
     grid-template-columns: 260px 1fr;
     gap: 2.5rem;
     padding: 2rem !important;
+    padding-top: calc(56px + 2rem) !important;
   }
 
   .cart-grid {

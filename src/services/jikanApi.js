@@ -102,15 +102,46 @@ export async function throttleJikan() {
   }
 }
 
+export async function fetchWithRetry(url, options, retries = 3, backoff = 1000) {
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const signal = options.signal 
+      ? (options.signal.aborted ? options.signal : AbortSignal.any([options.signal, controller.signal]))
+      : controller.signal;
+    
+    try {
+      const res = await fetch(url, { ...options, signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        if (res.status >= 500 && i < retries - 1) {
+          throw new Error(`Server Error ${res.status}`);
+        }
+        return res; // let the caller handle 4xx or throw
+      }
+      return res;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError' && !options.signal?.aborted && i < retries - 1) {
+        // This was our timeout, retry
+      } else if (i === retries - 1 || (err.name === 'AbortError' && options.signal?.aborted)) {
+        throw err;
+      }
+      // wait before retrying
+      await new Promise(resolve => setTimeout(resolve, backoff * Math.pow(2, i)));
+    }
+  }
+}
+
 export async function getPopularAnime(signal) {
   await throttleJikan();
   try {
-    const res = await fetch("https://api.jikan.moe/v4/top/anime?page=1", { signal });
+    const res = await fetchWithRetry("https://api.jikan.moe/v4/top/anime?page=1", { signal });
     if (!res.ok) throw new Error(`Jikan status ${res.status}`);
     const data = await res.json();
     return (data.data || []).slice(0, 20).map((item, idx) => normalizeAnime(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular anime from Jikan API:', err);
     return getLocalFallbacks();
   }
@@ -126,14 +157,14 @@ export async function searchAnime(query, signal) {
 
   await throttleJikan();
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&page=1`, { signal });
+    const res = await fetchWithRetry(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&page=1`, { signal });
     if (!res.ok) throw new Error(`Jikan search status ${res.status}`);
     const data = await res.json();
     const results = (data.data || []).slice(0, 20).map((item, idx) => normalizeAnime(item, idx));
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to search anime from Jikan API:', err);
     return getLocalFallbacks(query);
   }
@@ -147,14 +178,14 @@ export async function getAnimeDetails(id, signal) {
 
   await throttleJikan();
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/anime/${apiId}`, { signal });
+    const res = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${apiId}`, { signal });
     if (!res.ok) throw new Error(`Jikan detail status ${res.status}`);
     const data = await res.json();
     const result = normalizeAnime(data.data);
     detailsCache.set(apiId, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch anime details from Jikan:', err);
     const fallback = getLocalFallbacks().find(a => a.id === id);
     if (fallback) return fallback;

@@ -1,4 +1,4 @@
-import { throttleJikan } from './jikanApi';
+import { throttleJikan, fetchWithRetry } from './jikanApi';
 
 const fallbackManga = [
   { title: "Berserk Deluxe Edition, Vol. 1", author: "Kentaro Miura", genre: "Dark Fantasy, Action, Tragedy", year: "1989", desc: "The reigning king of adult fantasy manga now in deluxe oversized library editions. Guts, the Black Swordsman, seeks vengeance against the hand that branded him, fighting his way through a brutal world.", imageUrl: "https://cdn.myanimelist.net/images/manga/1/157897.jpg" },
@@ -96,13 +96,13 @@ function getLocalFallbacks(query = '') {
 export async function getPopularManga(signal) {
   await throttleJikan();
   try {
-    const res = await fetch("https://api.jikan.moe/v4/top/manga?page=1", { signal });
+    const res = await fetchWithRetry("https://api.jikan.moe/v4/top/manga?page=1", { signal });
     if (!res.ok) throw new Error(`Jikan manga top status ${res.status}`);
     const data = await res.json();
     console.log('[mangaApi] getPopularManga — received', (data.data || []).length, 'items; first:', data.data?.[0]?.title);
     return (data.data || []).slice(0, 20).map((item, idx) => normalizeManga(item, idx));
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch popular manga from Jikan API:', err);
     return getLocalFallbacks();
   }
@@ -118,7 +118,7 @@ export async function searchManga(query, signal) {
 
   await throttleJikan();
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&page=1`, { signal });
+    const res = await fetchWithRetry(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&page=1`, { signal });
     if (!res.ok) throw new Error(`Jikan manga search status ${res.status}`);
     const data = await res.json();
     console.log('[mangaApi] searchManga("' + query + '") — received', (data.data || []).length, 'items');
@@ -126,7 +126,7 @@ export async function searchManga(query, signal) {
     searchCache.set(normalizedQuery, results);
     return results;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to search manga from Jikan API:', err);
     return getLocalFallbacks(query);
   }
@@ -140,14 +140,14 @@ export async function getMangaDetails(id, signal) {
 
   await throttleJikan();
   try {
-    const res = await fetch(`https://api.jikan.moe/v4/manga/${apiId}`, { signal });
+    const res = await fetchWithRetry(`https://api.jikan.moe/v4/manga/${apiId}`, { signal });
     if (!res.ok) throw new Error(`Jikan manga detail status ${res.status}`);
     const data = await res.json();
     const result = normalizeManga(data.data);
     detailsCache.set(apiId, result);
     return result;
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch manga details from Jikan:', err);
     const fallback = getLocalFallbacks().find(m => m.id === id);
     if (fallback) return fallback;
