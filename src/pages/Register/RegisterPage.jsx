@@ -161,31 +161,29 @@ const RegisterPage = () => {
               />
             </div>
 
-            <div className="form-grid-2col">
-              <div className="auth-form-group">
-                <label className="auth-label">Roster Role</label>
-                <select 
-                  value={role} 
-                  onChange={(e) => setRole(e.target.value)}
-                  className="auth-input"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <option value="Buyer">Buyer (Buy items)</option>
-                  <option value="Seller">Seller (Sell items)</option>
-                </select>
-              </div>
+            <div className="auth-form-group">
+              <label className="auth-label">Roster Role</label>
+              <select 
+                value={role} 
+                onChange={(e) => setRole(e.target.value)}
+                className="auth-input"
+                style={{ cursor: 'pointer' }}
+              >
+                <option value="Buyer">Buyer (Buy items)</option>
+                <option value="Seller">Seller (Sell items)</option>
+              </select>
+            </div>
 
-              <div className="auth-form-group">
-                <label className="auth-label">Password</label>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="auth-input"
-                  placeholder="Min 6 characters"
-                  required
-                />
-              </div>
+            <div className="auth-form-group">
+              <label className="auth-label">Password</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="auth-input"
+                placeholder="Min 6 characters"
+                required
+              />
             </div>
 
             <div className="auth-form-group">
