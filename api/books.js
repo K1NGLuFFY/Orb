@@ -18,7 +18,10 @@ export default async function handler(req, res) {
 
     const response = await fetch(url);
     if (!response.ok) {
-      return res.status(response.status).json({ error: `Google Books error ${response.status}` });
+      const errorText = await response.text();
+      console.error(`[Google Books API] Error ${response.status}:`, errorText);
+      console.error(`[Google Books API] URL attempted:`, apiKey ? url.replace(apiKey, 'HIDDEN_KEY') : url);
+      return res.status(response.status).json({ error: `Google Books error ${response.status}`, details: errorText });
     }
     const data = await response.json();
     return res.status(200).json(data);

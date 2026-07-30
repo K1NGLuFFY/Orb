@@ -22,6 +22,7 @@ const CheckoutPage = () => {
   const [cartItems, setCartItems] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [invoice, setInvoice] = useState(null);
+  const [paystackLoaded, setPaystackLoaded] = useState(false);
 
   const [shippingForm, setShippingForm] = useState({
     fullName:   currentUser?.name  || '',
@@ -41,11 +42,20 @@ const CheckoutPage = () => {
   }, [cart]);
 
   useEffect(() => {
+    if (window.PaystackPop) {
+      setPaystackLoaded(true);
+      return;
+    }
     const script = document.createElement('script');
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
+    script.onload = () => setPaystackLoaded(true);
     document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
+    return () => { 
+      if (document.body.contains(script)) {
+        document.body.removeChild(script); 
+      }
+    };
   }, []);
 
   const totalAmount = cartItems.reduce(
@@ -61,14 +71,15 @@ const CheckoutPage = () => {
       return;
     }
 
-    const paystack = new window.PaystackPop();
-    paystack.newTransaction({
+    const handler = window.PaystackPop.setup({
       key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
       email: shippingForm.email,
       amount: Math.round(totalAmount * 100), // in kobo
-      onSuccess: async (transaction) => {
+      currency: 'NGN',
+      callback: function(transaction) {
         setCheckoutStep('processing');
-        try {
+        (async () => {
+          try {
           const session = await supabase.auth.getSession();
           const token = session.data.session?.access_token;
 
@@ -106,13 +117,16 @@ const CheckoutPage = () => {
         } catch (err) {
           console.error('[Verify Payment] Error:', err);
           setCheckoutStep('form');
-          setErrorMessage(err.message || 'Payment verification failed.');
-        }
+            setErrorMessage(err.message || 'Payment verification failed.');
+          }
+        })();
       },
-      onCancel: () => {
+      onClose: function() {
         setErrorMessage('Payment was cancelled. You can try again when you are ready.');
       }
     });
+
+    handler.openIframe();
   };
 
   return (
@@ -176,7 +190,9 @@ const CheckoutPage = () => {
                 </div>
                 <div className="checkout-buttons">
                   <Link to="/cart" className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Back to Shelf</Link>
-                  <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Buy Now</button>
+                  <button type="submit" className="btn btn-primary" disabled={!paystackLoaded} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: paystackLoaded ? 1 : 0.6 }}>
+                    {paystackLoaded ? 'Buy Now' : 'Loading Gateway...'}
+                  </button>
                 </div>
               </div>
             </form>

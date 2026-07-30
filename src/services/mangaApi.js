@@ -104,7 +104,7 @@ export async function getPopularManga(signal) {
     return (data.data || []).slice(0, 20).map((item, idx) => normalizeManga(item, idx));
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to fetch popular manga from Jikan API:', err);
+    console.warn('[mangaApi] Jikan API unavailable, falling back to local data.');
     return getLocalFallbacks();
   }
 }
@@ -128,7 +128,7 @@ export async function searchManga(query, signal) {
     return results;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to search manga from Jikan API:', err);
+    console.warn('[mangaApi] Jikan API search unavailable, falling back to local data.');
     return getLocalFallbacks(query);
   }
 }
@@ -149,7 +149,7 @@ export async function getMangaDetails(id, signal) {
     return result;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to fetch manga details from Jikan:', err);
+    console.warn('[mangaApi] Jikan API details unavailable, falling back to local data.');
     const fallback = getLocalFallbacks().find(m => m.id === id);
     if (fallback) return fallback;
     throw err;
