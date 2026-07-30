@@ -37,7 +37,6 @@ const CheckoutPage = () => {
       setErrorMessage('Your shelf is empty. Browse the catalog to add something.');
       return;
     }
-    }
     setCartItems(cart);
   }, [cart]);
 

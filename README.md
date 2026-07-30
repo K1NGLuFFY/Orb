@@ -1,53 +1,61 @@
 # Orbit
-**A retro-inspired, high-performance physical media marketplace.**
+*Your unified media catalog and secure digital shelf.*
 
-Orbit departs from the sterile grid styling of standard e-commerce websites. The user interface mimics the experience of walking through a curated bookstore or library collection. Cover artwork takes visual precedence, stacked side-by-side to replicate physical rows of media shelves. The site aggregates live data for Books, Comics, Anime, Manga, and Movies to create a distinct browsing experience for collectors.
+Orbit is a modern e-commerce platform that allows users to discover, organize, and purchase media across different categories, including movies, anime, books, and manga. It seamlessly merges physical database inventory with live external data sources to create an expansive, unified catalog. Built with strict role-based access controls and secure serverless payment handling, Orbit caters to buyers, sellers, and administrators alike.
 
 ## Tech Stack
-* **Frontend:** React 19, Vite 8, Vanilla CSS
-* **Backend:** Supabase (Auth, PostgreSQL, Realtime Subscriptions, RPCs)
-* **APIs:** TMDB, Jikan (MyAnimeList), Google Books, Open Library
+* **Frontend:** React, Vite, React Router, Lucide Icons
+* **Backend:** Supabase (PostgreSQL, Auth, RLS)
+* **Serverless Functions:** Vercel serverless (Node.js)
+* **Payment Gateway:** Paystack
+* **Data Sources:** TMDB API (Movies), Jikan API (Anime), Google Books API (Books), Manga API
 
 ## Key Features
-* **Shelving Grid Layout:** A unique browsing interface designed to resemble physical media spines.
-* **Live Multi-Source Search:** Queries local database items alongside live fetches from TMDB, Jikan, and Google Books.
-* **Real-time Inventory:** Uses Supabase real-time subscriptions to immediately reflect stock changes.
-* **Role-based Dashboards:** Dedicated panels for Buyers, Sellers, Staff, and Admins to manage inventory and orders.
-* **Graceful API Fallbacks:** Resilient data fetching with exponential backoff and offline seed data fallbacks.
+* **Unified Catalog:** Browse seeded database items alongside live external API results in one seamless interface.
+* **Role-Based Access Control (RBAC):** Distinct dashboards and permissions for Admins, Staff, Sellers, and Buyers via Supabase RLS.
+* **Secure Checkout:** Server-side transaction verification with Paystack, atomic stock decrement, and server-side price locking.
+* **Live Wishlist & Cart:** Mix live API products and physical DB items in one persistent shelf.
+* **API Proxy Security:** External API keys are kept entirely out of the client bundle using Vercel serverless proxies.
 
 ## Screenshots
-![Landing Page](./screenshots/landing.png)
-*Landing page showing the shelving layout and live activity ticker.*
 
-![Browse Shelf](./screenshots/browse.png)
-*Catalog shelf filtering items by category, genre, and price range.*
+![Homepage Overview](placeholder-homepage.jpg)
+*Homepage and unified catalog interface.*
 
-![Checkout Flow](./screenshots/checkout.png)
-*Guarded checkout process displaying billing invoice details.*
+![Checkout & Paystack](placeholder-checkout.jpg)
+*Secure checkout flow with Paystack integration.*
+
+![Role Dashboards](placeholder-dashboard.jpg)
+*Role-specific dashboards for inventory and order management.*
 
 ## Quick Local Setup
 
 1. **Clone & Install**
    ```bash
-   git clone https://github.com/your-username/orbit.git
-   cd orbit
+   git clone https://github.com/K1NGLuFFY/Orb.git
+   cd Orb
    npm install
    ```
 
-2. **Configure Environment**
-   Create a `.env` file in the root directory:
+2. **Run Development Server**
+   Because Orbit uses Vercel serverless proxies to securely hide API keys, you **must use the Vercel CLI** to run the project locally. Using standard `npm run dev` (Vite) will not execute the `/api` routes.
    
-   | Variable | Description |
-   | :--- | :--- |
-   | `VITE_SUPABASE_URL` | Your Supabase project URL |
-   | `VITE_SUPABASE_ANON_KEY` | Your Supabase public anon key |
-   | `VITE_TMDB_API_KEY` | TMDB API key for movies |
-   | `VITE_GOOGLE_BOOKS_KEY` | Google Books API key for books and comics |
-
-3. **Run Development Server**
    ```bash
-   npm run dev
+   npm i -g vercel
+   vercel dev
    ```
 
+### Environment Variables
+Create a `.env` file in the root directory:
+
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase public anon key |
+| `VITE_PAYSTACK_PUBLIC_KEY` | Paystack public key for the frontend popup |
+| `PAYSTACK_SECRET_KEY` | Paystack secret key for server-side verification |
+| `TMDB_API_KEY` | TMDB API Read Access Token (v4 or v3) |
+| `GOOGLE_BOOKS_KEY` | Google Books API key |
+
 ## License
-MIT License.
+MIT License

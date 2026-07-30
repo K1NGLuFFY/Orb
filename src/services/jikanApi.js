@@ -103,10 +103,10 @@ export async function throttleJikan() {
   }
 }
 
-export async function fetchWithRetry(url, options, retries = 3, backoff = 1000) {
+export async function fetchWithRetry(url, options, retries = 4, backoff = 1000) {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     const signal = options.signal 
       ? (options.signal.aborted ? options.signal : AbortSignal.any([options.signal, controller.signal]))
       : controller.signal;
