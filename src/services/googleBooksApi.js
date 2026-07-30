@@ -86,15 +86,7 @@ function maskKey(key) {
   return `${key.slice(0, 4)}...${key.slice(-4)} (length: ${key.length})`;
 }
 
-function getApiKey() {
-  const key1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
-  const key2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-  const key = key1 || key2;
-  if (!key || key === 'your_real_key_here' || key.startsWith('YOUR_')) {
-    return null;
-  }
-  return key;
-}
+// API keys are now securely managed server-side in the /api/books proxy.
 
 function normalizeOpenLibraryBook(item, index = 0) {
   const workId = item.key.split('/').pop();
@@ -126,14 +118,8 @@ function normalizeOpenLibraryBook(item, index = 0) {
 }
 
 export async function getPopularBooks(signal) {
-  const apiKey = getApiKey();
-  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
-  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-  console.log(`[Google Books API] getPopularBooks called. VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
-
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=subject:fiction&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
-    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
+    const url = `/api/books?action=popular`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books status ${res.status}`);
     const data = await res.json();
@@ -166,14 +152,8 @@ export async function searchBooks(query, signal) {
     return searchCache.get(normalizedQuery);
   }
 
-  const apiKey = getApiKey();
-  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
-  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-  console.log(`[Google Books API] searchBooks called. Query: "${query}". VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
-
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
-    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
+    const url = `/api/books?action=search&query=${encodeURIComponent(query)}`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books search status ${res.status}`);
     const data = await res.json();
@@ -213,14 +193,9 @@ export async function getBookDetails(id, signal) {
   }
 
   const apiId = id.replace('api-book-', '');
-  const apiKey = getApiKey();
-  const rawKey1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
-  const rawKey2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-  console.log(`[Google Books API] getBookDetails called. Book ID: ${apiId}. VITE_GOOGLE_BOOKS_KEY: ${maskKey(rawKey1)}, VITE_GOOGLE_BOOKS_API_KEY: ${maskKey(rawKey2)}. Effective Key: ${maskKey(apiKey)}`);
 
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes/${apiId}${apiKey ? `?key=${apiKey}` : ''}`;
-    console.log(`[Google Books API] Fetching from URL: ${url.replace(apiKey, maskKey(apiKey))}`);
+    const url = `/api/books?action=details&id=${apiId}`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books detail status ${res.status}`);
     const data = await res.json();

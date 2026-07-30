@@ -462,7 +462,7 @@ const BuyerDashboard = () => {
                         Date Placed
                       </span>
                       <span style={{ fontSize: '0.9rem', fontFamily: 'var(--font-mono)' }}>
-                        {new Date(order.date).toLocaleString()}
+                        {new Date(order.created_at).toLocaleString()}
                       </span>
                     </div>
 
