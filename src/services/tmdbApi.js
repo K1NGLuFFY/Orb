@@ -21,13 +21,7 @@ const fallbackMovies = [
 const searchCache = new Map();
 const detailsCache = new Map();
 
-function getApiKey() {
-  const key = import.meta.env.VITE_TMDB_API_KEY;
-  if (!key || key === 'your_real_key_here' || key.startsWith('YOUR_')) {
-    return null;
-  }
-  return key;
-}
+// The API key is now securely managed server-side in the /api/tmdb proxy.
 
 function normalizeMovie(item, index = 0) {
   const tmdbId = item.id;
@@ -100,14 +94,8 @@ function getLocalFallbacks(query = '') {
 }
 
 export async function getPopularMovies(signal) {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    console.warn('TMDB API Key missing. Returning fallback movies.');
-    return getLocalFallbacks();
-  }
-
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&page=1`, { signal });
+    const res = await fetch(`/api/tmdb?action=discover`, { signal });
     if (!res.ok) throw new Error(`TMDB error status ${res.status}`);
     const data = await res.json();
     return (data.results || []).slice(0, 20).map((item, idx) => normalizeMovie(item, idx));
@@ -126,14 +114,8 @@ export async function searchMovies(query, signal) {
     return searchCache.get(normalizedQuery);
   }
 
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    console.warn('TMDB API Key missing. Filtering local fallbacks.');
-    return getLocalFallbacks(query);
-  }
-
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=1`, { signal });
+    const res = await fetch(`/api/tmdb?action=search&query=${encodeURIComponent(query)}`, { signal });
     if (!res.ok) throw new Error(`TMDB error status ${res.status}`);
     const data = await res.json();
     const results = (data.results || []).slice(0, 20).map((item, idx) => normalizeMovie(item, idx));
@@ -152,16 +134,8 @@ export async function getMovieDetails(id, signal) {
     return detailsCache.get(apiId);
   }
 
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    // Look up in fallbacks
-    const fallback = getLocalFallbacks().find(m => m.id === id);
-    if (fallback) return fallback;
-    throw new Error('TMDB API key not configured.');
-  }
-
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/movie/${apiId}?api_key=${apiKey}&append_to_response=credits`, { signal });
+    const res = await fetch(`/api/tmdb?action=details&id=${apiId}`, { signal });
     if (!res.ok) throw new Error(`TMDB details error status ${res.status}`);
     const data = await res.json();
     const result = normalizeMovie(data);

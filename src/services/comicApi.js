@@ -15,15 +15,7 @@ const unsplashUrls = [
 const searchCache = new Map();
 const detailsCache = new Map();
 
-function getApiKey() {
-  const key1 = import.meta.env.VITE_GOOGLE_BOOKS_KEY;
-  const key2 = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
-  const key = key1 || key2;
-  if (!key || key === 'your_real_key_here' || key.startsWith('YOUR_')) {
-    return null;
-  }
-  return key;
-}
+// API keys are securely managed server-side.
 
 function normalizeGoogleComic(item, index = 0) {
   const googleBookId = item.id;
@@ -113,9 +105,8 @@ function getLocalFallbacks(query = '') {
 }
 
 export async function getPopularComics(signal) {
-  const apiKey = getApiKey();
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=subject:comics&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
+    const url = `/api/books?action=search&query=subject:comics`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books status ${res.status}`);
     const data = await res.json();
@@ -148,9 +139,8 @@ export async function searchComics(query, signal) {
     return searchCache.get(normalizedQuery);
   }
 
-  const apiKey = getApiKey();
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=subject:comics+${encodeURIComponent(query)}&maxResults=20${apiKey ? `&key=${apiKey}` : ''}`;
+    const url = `/api/books?action=search&query=subject:comics+${encodeURIComponent(query)}`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books status ${res.status}`);
     const data = await res.json();
@@ -190,9 +180,8 @@ export async function getComicDetails(id, signal) {
   }
 
   const googleId = id.replace('api-comic-', '');
-  const apiKey = getApiKey();
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes/${googleId}${apiKey ? `?key=${apiKey}` : ''}`;
+    const url = `/api/books?action=details&id=${googleId}`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Google Books detail status ${res.status}`);
     const data = await res.json();

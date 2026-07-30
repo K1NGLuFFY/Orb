@@ -1113,7 +1113,7 @@ const AdminDashboard = () => {
                 </div>
                 <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                   <div>Invoice Total: <strong>${order.total.toFixed(2)}</strong></div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(order.date).toLocaleString()}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(order.created_at).toLocaleString()}</div>
                 </div>
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -1237,7 +1237,7 @@ const AdminDashboard = () => {
                 <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.5rem' }}>{ann.title}</h4>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>{ann.content}</p>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  Published: {new Date(ann.date).toLocaleDateString()}
+                  Published: {new Date(ann.created_at).toLocaleDateString()}
                 </span>
               </div>
             ))}
