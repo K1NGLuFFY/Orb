@@ -2982,3 +2982,12 @@ main {
     text-align: center !important; /* Center the breadcrumbs and title under the massive poster */
   }
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

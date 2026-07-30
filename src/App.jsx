@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
+import { AudioProvider } from './context/AudioContext';
 
 // Protected Route Guard
 import ProtectedRoute from './components/Common/ProtectedRoute';
@@ -12,6 +13,7 @@ import DashboardShell from './components/Layout/DashboardShell';
 
 // Reusable Loading Screen
 import LoadingScreen from './components/Common/LoadingScreen';
+import AudioWidget from './components/Common/AudioWidget';
 
 // Pages (Lazy Loaded)
 const LandingPage = React.lazy(() => import('./pages/Landing/LandingPage'));
@@ -52,8 +54,10 @@ function App() {
     <AuthProvider>
       <ToastProvider>
         <CartProvider>
-        <Router>
-          <Suspense fallback={<LoadingScreen />}>
+          <AudioProvider>
+            <Router>
+              <AudioWidget />
+              <Suspense fallback={<LoadingScreen />}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
@@ -124,6 +128,7 @@ function App() {
             </Routes>
           </Suspense>
         </Router>
+          </AudioProvider>
       </CartProvider>
       </ToastProvider>
     </AuthProvider>
