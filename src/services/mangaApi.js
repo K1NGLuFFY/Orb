@@ -1,5 +1,6 @@
 import { throttleJikan, fetchWithRetry } from './jikanApi';
 
+import { generatePriceFromId } from '../utils/priceHelper';
 const fallbackManga = [
   { title: "Berserk Deluxe Edition, Vol. 1", author: "Kentaro Miura", genre: "Dark Fantasy, Action, Tragedy", year: "1989", desc: "The reigning king of adult fantasy manga now in deluxe oversized library editions. Guts, the Black Swordsman, seeks vengeance against the hand that branded him, fighting his way through a brutal world.", imageUrl: "https://cdn.myanimelist.net/images/manga/1/157897.jpg" },
   { title: "One Piece, Vol. 1: Romance Dawn", author: "Eiichiro Oda", genre: "Adventure, Action, Comedy", year: "1997", desc: "Monkey D. Luffy refuses to let anyone or anything stand in the way of his quest to become the King of all Pirates. With a course charted for the treacherous waters of the Grand Line, this is the boy who will never give up.", imageUrl: "https://cdn.myanimelist.net/images/manga/2/253146.jpg" },
@@ -38,7 +39,7 @@ function normalizeManga(item, index = 0) {
     : 'N/A';
 
   const rating = item.score ? parseFloat((item.score / 2).toFixed(1)) : 4.5;
-  const price = parseFloat((9.99 + (malId % 20) * 1.49).toFixed(2));
+  const price = generatePriceFromId(`api-manga-${malId}`, 'Manga');
   const stock = (malId % 10) + 3;
 
   // Prefer large jpg, then regular jpg, then webp fallbacks
@@ -78,7 +79,7 @@ function getLocalFallbacks(query = '') {
     genre: item.genre,
     releaseYear: item.year,
     language: 'English',
-    price: parseFloat((9.99 + i * 1.49).toFixed(2)),
+    price: generatePriceFromId(`api-manga-mock-${i + 1}`, 'Manga'),
     stock: (i * 5) % 12 + 3,
     rating: parseFloat((4.4 + i * 0.07).toFixed(1)),
     createdAt: new Date(new Date('2026-06-05T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()

@@ -1,3 +1,4 @@
+import { generatePriceFromId } from '../utils/priceHelper';
 const fallbackAnime = [
   { title: "Neon Genesis Evangelion", studio: "Gainax", genre: "Sci-Fi, Mecha, Psychological", year: "1995", desc: "In the year 2015, humanity's last hope lies in the hands of Nerv and their Evangelions to defeat the Angels.", imageUrl: "https://cdn.myanimelist.net/images/anime/1404/122192.jpg" },
   { title: "Spirited Away", studio: "Studio Ghibli", genre: "Fantasy, Adventure, Drama", year: "2001", desc: "A young girl wanders into a world ruled by gods, beasts, and magic, where her parents are turned into beasts.", imageUrl: "https://cdn.myanimelist.net/images/anime/6/79597.jpg" },
@@ -41,7 +42,7 @@ function normalizeAnime(item, index = 0) {
     : item.year ? item.year.toString() : 'N/A';
 
   const rating = item.score ? parseFloat((item.score / 2).toFixed(1)) : 4.5;
-  const price = parseFloat((19.99 + (malId % 20) * 2.37).toFixed(2));
+  const price = generatePriceFromId(`api-anime-${malId}`, 'Anime');
   const stock = (malId % 10) + 3;
 
   return {
@@ -72,7 +73,7 @@ function getLocalFallbacks(query = '') {
     genre: item.genre,
     releaseYear: item.year,
     language: 'Japanese / English',
-    price: parseFloat((19.99 + i * 2.37).toFixed(2)),
+    price: generatePriceFromId(`api-anime-mock-${i + 1}`, 'Anime'),
     stock: (i * 5) % 12 + 3,
     rating: parseFloat((4.4 + i * 0.07).toFixed(1)),
     createdAt: new Date(new Date('2026-06-01T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()

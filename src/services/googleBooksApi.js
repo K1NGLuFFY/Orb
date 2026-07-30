@@ -31,9 +31,12 @@ function normalizeBook(item, index = 0) {
     if (rawUrl) imageUrl = rawUrl.replace(/^http:\/\//i, 'https://');
   }
 
-  const price = parseFloat((8.99 + (index * 1.63) % 20).toFixed(2));
-  const stock = (index * 7) % 15 + 3;
-  const rating = info.averageRating ? parseFloat(info.averageRating.toFixed(1)) : parseFloat((4.1 + (index * 0.13) % 0.9).toFixed(1));
+  let hash = 0;
+  for (let i = 0; i < googleBookId.length; i++) hash = googleBookId.charCodeAt(i) + ((hash << 5) - hash);
+  hash = Math.abs(hash);
+  const price = parseFloat((8.99 + (hash % 20) * 0.5).toFixed(2));
+  const stock = (hash % 15) + 3;
+  const rating = info.averageRating ? parseFloat(info.averageRating.toFixed(1)) : parseFloat((4.1 + (hash % 9) * 0.1).toFixed(1));
   const releaseYear = info.publishedDate ? info.publishedDate.split('-')[0] : 'N/A';
 
   return {
@@ -95,9 +98,12 @@ function normalizeOpenLibraryBook(item, index = 0) {
     ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
     : unsplashUrls[index % unsplashUrls.length];
 
-  const price = parseFloat((8.99 + (index * 1.63) % 20).toFixed(2));
-  const stock = (index * 7) % 15 + 3;
-  const rating = parseFloat((4.1 + (index * 0.13) % 0.9).toFixed(1));
+  let hash = 0;
+  for (let i = 0; i < workId.length; i++) hash = workId.charCodeAt(i) + ((hash << 5) - hash);
+  hash = Math.abs(hash);
+  const price = parseFloat((8.99 + (hash % 20) * 0.5).toFixed(2));
+  const stock = (hash % 15) + 3;
+  const rating = parseFloat((4.1 + (hash % 9) * 0.1).toFixed(1));
   const releaseYear = item.first_publish_year ? item.first_publish_year.toString() : 'N/A';
 
   return {

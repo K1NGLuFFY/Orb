@@ -258,7 +258,7 @@ const ProductDetailsPage = () => {
         showFeedback('Failed to remove from wishlist. Please try again.', 'error');
       }
     } else {
-      const success = await addToWishlist(product.id, product.title);
+      const success = await addToWishlist(product);
       if (success) {
         showFeedback('Added to your wishlist!');
       } else {

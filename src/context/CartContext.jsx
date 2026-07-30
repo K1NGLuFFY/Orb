@@ -108,9 +108,33 @@ export const CartProvider = ({ children }) => {
           updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + quantity };
           return updated;
         }
-        return [...prev, { productId: product.id, quantity, ...product, id: product.id }];
+        return [...prev, { ...product, productId: product.id, quantity, user_id: currentUser.id }];
       });
-      showToast(`Added "${product.title}" to cart.`, 'success');
+      showToast(`Added ${quantity}x "${product.title}" to cart!`, 'success');
+      
+      // Call backend to cache the price snippet securely
+      try {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        if (token) {
+          fetch('/api/cache-api-product', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              id: product.id,
+              title: product.title,
+              category: product.category,
+              imageUrl: product.imageUrl,
+              source: 'api'
+            })
+          }).catch(err => console.error('Background cache failed:', err));
+        }
+      } catch (err) {
+        console.error('Failed to get token for cache-api-product', err);
+      }
       return true;
     }
 
@@ -202,31 +226,58 @@ export const CartProvider = ({ children }) => {
   };
 
   // ── ADD TO WISHLIST ───────────────────────────────────────────────────────
-  const addToWishlist = async (productId, productTitle) => {
+  const addToWishlist = async (productDetails) => {
+    const productId = productDetails.id;
     if (!currentUser) {
       showToast('Please log in to manage your shelf.', 'error');
       return false;
     }
 
-    if (wishlist.includes(productId)) {
-      showToast(`"${productTitle ?? 'Item'}" is already in your wishlist.`, 'info');
+    if (wishlist.find(i => (i.productId || i.id) === productId)) {
+      showToast(`"${productDetails.title ?? 'Item'}" is already in your wishlist.`, 'info');
       return false;
     }
 
     if (isApiProduct(productId)) {
       // API products: state only (no FK reference available), persist to localStorage
       const localKey = `wishlist_api_${currentUser.id}`;
-      try {
-        const stored = JSON.parse(localStorage.getItem(localKey) || '[]');
-        if (!stored.includes(productId)) {
-          stored.push(productId);
-          localStorage.setItem(localKey, JSON.stringify(stored));
+      let current = [];
+      try { current = JSON.parse(localStorage.getItem(localKey) || '[]'); } catch (e) {}
+      
+      if (!current.find(i => (i.productId || i.id) === productId)) {
+        current.push(productDetails);
+        try { localStorage.setItem(localKey, JSON.stringify(current)); } catch (e) {
+          console.error('[CartContext] Failed to save api wishlist to localStorage:', e);
         }
-      } catch (e) {
-        console.error('[CartContext] Failed to save api wishlist to localStorage:', e);
+        setWishlist(prev => [...prev, productDetails]);
+        showToast(`Added "${productDetails.title}" to wishlist!`, 'success');
+        
+        // Cache API product to secure its price for future checkout
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
+          if (token) {
+            fetch('/api/cache-api-product', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                id: productDetails.id,
+                title: productDetails.title,
+                category: productDetails.category,
+                imageUrl: productDetails.imageUrl,
+                source: 'api'
+              })
+            }).catch(err => console.error('Background cache failed:', err));
+          }
+        } catch (err) {
+          console.error('Failed to get token for cache-api-product', err);
+        }
+      } else {
+        showToast(`"${productDetails.title}" is already in your wishlist!`, 'info');
       }
-      setWishlist(prev => [...prev, productId]);
-      showToast(`Added "${productTitle ?? 'Item'}" to wishlist.`, 'success');
       return true;
     }
 
@@ -240,7 +291,7 @@ export const CartProvider = ({ children }) => {
     }
 
     setWishlist(prev => [...prev, productId]);
-    showToast(`Added "${productTitle ?? 'Item'}" to wishlist.`, 'success');
+    showToast(`Added "${productDetails.title ?? 'Item'}" to wishlist.`, 'success');
     return true;
   };
 

@@ -13,13 +13,6 @@ const isApiProduct = (productId) =>
     productId.startsWith('api-book-')
   );
 
-const generateReceiptNumber = () => {
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let result = '';
-  for (let i = 0; i < 10; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-  return `REC-${result}`;
-};
-
 const CheckoutPage = () => {
   const { currentUser } = useAuth();
   const { cart, clearCart } = useCart();
@@ -34,9 +27,7 @@ const CheckoutPage = () => {
     fullName:   currentUser?.name  || '',
     email:      currentUser?.email || '',
     address:    '',
-    cardNumber: '',
-    expiry:     '',
-    cvv:        '',
+    address:    '',
   });
 
   // Cart is already hydrated by CartContext
@@ -46,8 +37,17 @@ const CheckoutPage = () => {
       setErrorMessage('Your shelf is empty. Browse the catalog to add something.');
       return;
     }
+    }
     setCartItems(cart);
   }, [cart]);
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { document.body.removeChild(script); };
+  }, []);
 
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + (item.price * item.quantity), 0
@@ -56,84 +56,64 @@ const CheckoutPage = () => {
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setCheckoutStep('processing');
 
-    try {
-      // ── 1. Deplete stock for seeded items via atomic RPC ─────────────────
-      const seededItems = cartItems.filter(item => !isApiProduct(item.productId ?? item.id));
-
-      for (const item of seededItems) {
-        const productId = item.productId ?? item.id;
-        const { data: success, error } = await supabase.rpc('decrement_stock', {
-          p_product_id: productId,
-          p_qty:        item.quantity,
-        });
-
-        if (error) {
-          throw new Error(`Stock check failed for "${item.title}": ${error.message}`);
-        }
-
-        if (!success) {
-          // Atomic check: someone else bought the last copy
-          setCheckoutStep('form');
-          setErrorMessage(
-            `"${item.title}" no longer has enough stock. ` +
-            `Please update your cart and try again.`
-          );
-          return;
-        }
-      }
-
-      // ── 2. Build order line items ─────────────────────────────────────────
-      const orderItems = cartItems.map(item => ({
-        productId: item.productId ?? item.id,
-        title:     item.title,
-        category:  item.category,
-        price:     item.price,
-        quantity:  item.quantity,
-        sellerId:  item.seller_id ?? null,
-        source:    isApiProduct(item.productId ?? item.id) ? 'api' : 'db',
-      }));
-
-      // ── 3. Insert order into orders table ────────────────────────────────
-      const receiptNumber = generateReceiptNumber();
-
-      const { data: newOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          user_id:        currentUser.id,
-          items:          orderItems,
-          total:          totalAmount,
-          receipt_number: receiptNumber,
-        }])
-        .select()
-        .single();
-
-      if (orderError) {
-        throw new Error(`Failed to record order: ${orderError.message}`);
-      }
-
-      // ── 4. Build invoice for display ──────────────────────────────────────
-      setInvoice({
-        id:            newOrder.id,
-        receiptNumber: newOrder.receipt_number,
-        date:          newOrder.created_at,
-        userName:      currentUser.name,
-        items:         orderItems,
-        total:         totalAmount,
-      });
-
-      // ── 5. Clear cart ────────────────────────────────────────────────────
-      await clearCart();
-
-      setCheckoutStep('success');
-      showToast('Transaction Successful! Order Invoice Generated.', 'success');
-
-    } catch (err) {
-      console.error('[Checkout] Error:', err);
-      setCheckoutStep('form');
-      setErrorMessage(err.message || 'Checkout failed. Please try again.');
+    if (!window.PaystackPop) {
+      setErrorMessage('Payment gateway is loading. Please try again in a moment.');
+      return;
     }
+
+    const paystack = new window.PaystackPop();
+    paystack.newTransaction({
+      key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+      email: shippingForm.email,
+      amount: Math.round(totalAmount * 100), // in kobo
+      onSuccess: async (transaction) => {
+        setCheckoutStep('processing');
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
+
+          const response = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              reference: transaction.reference,
+              cartItems
+            })
+          });
+
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || 'Payment verification failed');
+          }
+
+          const newOrder = result.order;
+
+          setInvoice({
+            id:            newOrder.id,
+            receiptNumber: newOrder.receipt_number,
+            date:          newOrder.created_at,
+            userName:      currentUser.name,
+            items:         newOrder.items,
+            total:         newOrder.total,
+          });
+
+          await clearCart();
+          setCheckoutStep('success');
+          showToast('Transaction Successful! Order Invoice Generated.', 'success');
+        } catch (err) {
+          console.error('[Verify Payment] Error:', err);
+          setCheckoutStep('form');
+          setErrorMessage(err.message || 'Payment verification failed.');
+        }
+      },
+      onCancel: () => {
+        setErrorMessage('Payment was cancelled. You can try again when you are ready.');
+      }
+    });
   };
 
   return (
@@ -160,7 +140,7 @@ const CheckoutPage = () => {
           <div style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', borderRadius: '6px', padding: '2.5rem' }}>
             <h1 className="display-title" style={{ fontSize: '2rem', marginBottom: '1rem' }}>BILLING &amp; DISPATCH</h1>
             <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '0.9rem' }}>
-              Confirm your checkout details below. This transaction is simulated to finalize your catalog order. No real payment processing is performed.
+              Confirm your shipping details below. You will be securely redirected to Paystack for payment processing.
             </p>
 
             {errorMessage && (
@@ -186,23 +166,7 @@ const CheckoutPage = () => {
                 <input type="text" value={shippingForm.address} onChange={e => setShippingForm({ ...shippingForm, address: e.target.value })} className="form-input" placeholder="e.g. 123 Collector Lane, Shelf City" required />
               </div>
 
-              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Simulated Card Details</span>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Card Number</label>
-                  <input type="text" value={shippingForm.cardNumber} onChange={e => setShippingForm({ ...shippingForm, cardNumber: e.target.value })} className="form-input" placeholder="•••• •••• •••• ••••" required />
-                </div>
-                <div className="checkout-form-grid">
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Expiry Date</label>
-                    <input type="text" value={shippingForm.expiry} onChange={e => setShippingForm({ ...shippingForm, expiry: e.target.value })} className="form-input" placeholder="MM/YY" required />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">CVV / Code</label>
-                    <input type="text" value={shippingForm.cvv} onChange={e => setShippingForm({ ...shippingForm, cvv: e.target.value })} className="form-input" placeholder="•••" maxLength="4" required />
-                  </div>
-                </div>
-              </div>
+
 
               <div className="checkout-footer-row" style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem', marginTop: '1rem' }}>
                 <div>
@@ -245,7 +209,7 @@ const CheckoutPage = () => {
 {`==================================================
               ORBIT CATALOG RECEIPT
 ==================================================
-DATE:    ${new Date(invoice.date).toLocaleString()}
+DATE:    ${new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(invoice.date))}
 ORDER:   ${invoice.id}
 RECEIPT: ${invoice.receiptNumber}
 BUYER:   ${invoice.userName.toUpperCase()}
@@ -263,7 +227,7 @@ POSTAGE:                                   $0.00
 --------------------------------------------------
 TOTAL CHARGED:                          $${invoice.total.toFixed(2)}
 ==================================================
-  * SIMULATED TRANSACTIONS. NO REAL FUNDS TRANSFERRED.
+  * PROCESSED SECURELY VIA PAYSTACK
 ==================================================`}
             </div>
 
@@ -284,7 +248,7 @@ TOTAL CHARGED:                          $${invoice.total.toFixed(2)}
       </main>
 
       <footer style={{ padding: '2rem', borderTop: '1px solid var(--hairline)', backgroundColor: 'var(--panel)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'auto' }}>
-        <span>&copy; 2026 Orbit Checkout System. Simulated operations.</span>
+        <span>&copy; 2026 Orbit Checkout System. Secure Transactions.</span>
       </footer>
     </div>
   );

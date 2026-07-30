@@ -5,6 +5,7 @@ const tmdbGenreMap = {
   10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'
 };
 
+import { generatePriceFromId } from '../utils/priceHelper';
 const fallbackMovies = [
   { title: "Blade Runner 2049", director: "Denis Villeneuve", genre: "Sci-Fi, Cyberpunk, Drama", year: "2017", desc: "Officer K, a new blade runner for the Los Angeles Police Department, unearths a long-buried secret that has the potential to plunge what's left of society into chaos.", imageUrl: "https://image.tmdb.org/t/p/w500/gB0619SjUIv22B6HUjSNj6t4wzV.jpg" },
   { title: "Interstellar", director: "Christopher Nolan", genre: "Sci-Fi, Adventure, Drama", year: "2014", desc: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival on a dying Earth in this modern science fiction epic.", imageUrl: "https://image.tmdb.org/t/p/w500/gEU2Qv4w3Fg7vJUxsZ5jR6ky6mA.jpg" },
@@ -45,7 +46,7 @@ function normalizeMovie(item, index = 0) {
     director = directors[tmdbId % directors.length];
   }
 
-  const price = parseFloat((9.99 + (tmdbId % 15) * 1.49).toFixed(2));
+  const price = generatePriceFromId(`api-movie-${tmdbId}`, 'Movie');
   const stock = (tmdbId % 12) + 3;
   const rating = item.vote_average ? parseFloat((item.vote_average / 2).toFixed(1)) : 4.0;
   const releaseYear = item.release_date ? item.release_date.split('-')[0] : 'N/A';
@@ -78,7 +79,7 @@ function getLocalFallbacks(query = '') {
     genre: m.genre,
     releaseYear: m.year,
     language: 'English',
-    price: parseFloat((9.99 + (i * 1.49) % 25).toFixed(2)),
+    price: generatePriceFromId(`api-movie-mock-${i + 1}`, 'Movie'),
     stock: (i * 4) % 15 + 2,
     rating: parseFloat((4.3 + (i * 0.08) % 0.7).toFixed(1)),
     createdAt: new Date(new Date('2026-06-17T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()
