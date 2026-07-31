@@ -1,0 +1,98 @@
+.audio-widget-container {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  background: var(--panel);
+  padding: 8px;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--hairline);
+}
+
+.audio-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--signal);
+  color: var(--ink);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.audio-play-btn:hover {
+  transform: scale(1.05);
+}
+
+.audio-mute-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.audio-mute-btn:hover {
+  opacity: 1;
+}
+
+.vinyl-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.vinyl-icon.playing {
+  animation: audio-spin 4s linear infinite;
+}
+
+@keyframes audio-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .audio-widget-container {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    padding: 6px;
+    /* Ensure z-index is lower than mobile menus/modals which use 999 or higher */
+    z-index: 80; 
+  }
+  
+  .audio-play-btn, .audio-mute-btn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}
