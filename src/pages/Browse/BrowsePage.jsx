@@ -35,7 +35,6 @@ const BrowsePage = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [loadingPopular, setLoadingPopular] = useState(false);
 
@@ -249,7 +248,6 @@ const BrowsePage = () => {
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
-    setShowSuggestions(true);
     const newParams = new URLSearchParams(searchParams);
     if (val === '') newParams.delete('q'); else newParams.set('q', val);
     setSearchParams(newParams);
@@ -375,59 +373,12 @@ const BrowsePage = () => {
                 placeholder="Search titles, creators, genres..." 
                 value={searchQuery} 
                 onChange={handleSearchChange} 
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 className="form-input" 
                 style={{ paddingLeft: '1rem', fontSize: '1rem' }} 
               />
               {isSearching && (
                 <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--signal)' }}>
                   FETCHING...
-                </div>
-              )}
-              {showSuggestions && searchQuery && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  marginTop: '0.5rem',
-                  background: 'var(--panel)',
-                  border: '1px solid var(--hairline)',
-                  borderRadius: '6px',
-                  zIndex: 100,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                  maxHeight: '300px',
-                  overflowY: 'auto'
-                }}>
-                  {filteredProducts.slice(0, 5).map(p => (
-                    <Link
-                      key={p.id}
-                      to={`/product/${p.id}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        padding: '0.75rem 1rem',
-                        borderBottom: '1px solid var(--hairline)',
-                        textDecoration: 'none',
-                        color: 'var(--text)'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--panel-raised)'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <img src={p.imageUrl} alt={p.title} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{p.title}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.category} • ${p.price.toFixed(2)}</div>
-                      </div>
-                    </Link>
-                  ))}
-                  {filteredProducts.length === 0 && !isSearching && (
-                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No results found
-                    </div>
-                  )}
                 </div>
               )}
             </div>
