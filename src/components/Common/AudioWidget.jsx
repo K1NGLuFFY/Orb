@@ -1,10 +1,16 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Play, Pause, Volume2, VolumeX, Disc3 } from 'lucide-react';
 import { useAudio } from '../../context/AudioContext';
 import './AudioWidget.css';
 
 const AudioWidget = () => {
   const { isPlaying, isMuted, togglePlay, toggleMute } = useAudio();
+  const location = useLocation();
+
+  if (location.pathname.startsWith('/dashboard')) {
+    return null;
+  }
 
   return (
     <div className="audio-widget-container">

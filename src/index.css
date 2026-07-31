@@ -638,6 +638,8 @@ img {
     gap: 1.25rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     z-index: 99;
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
   }
 
   .navbar-menu.open {
@@ -2348,6 +2350,7 @@ body.no-scroll {
   max-width: 500px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
@@ -2502,6 +2505,7 @@ body.no-scroll {
 
   .hero-description {
     -webkit-line-clamp: 3 !important; /* Truncate description more aggressively on mobile */
+    line-clamp: 3 !important;
     margin-bottom: 1.5rem !important;
     text-align: center !important;
     max-width: 100% !important;
