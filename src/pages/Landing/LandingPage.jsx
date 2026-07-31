@@ -145,14 +145,7 @@ const LandingPage = () => {
         )}
       </div>
 
-      {/* Pulse Keyframes style */}
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-          100% { opacity: 0.3; }
-        }
-      `}</style>
+
 
       {/* 3. CATEGORY ROWS */}
       <section style={{
@@ -163,7 +156,7 @@ const LandingPage = () => {
       }}>
         {loading ? (
           <div style={{ padding: '4rem 2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ height: '30px', background: 'var(--panel)', width: '200px', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
+            <div style={{ height: '30px', background: 'var(--panel)', width: '200px', borderRadius: '4px' }} />
             <div style={{ display: 'flex', gap: '1.25rem', overflowX: 'hidden' }}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} style={{ minWidth: '220px', height: '340px' }}>

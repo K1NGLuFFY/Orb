@@ -170,9 +170,9 @@ const ProductDetailsPage = () => {
                  </div>
               </div>
               <div className="product-info-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ height: '2rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '60%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
-                <div style={{ height: '1.5rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '40%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
-                <div style={{ height: '4rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '100%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
+                <div style={{ height: '2rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '60%' }} />
+                <div style={{ height: '1.5rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '40%' }} />
+                <div style={{ height: '4rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '100%' }} />
               </div>
             </div>
           </div>
