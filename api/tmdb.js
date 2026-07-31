@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     } else if (action === 'search') {
       url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=1`;
     } else if (action === 'details') {
-      url = `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=credits`;
+      url = `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=credits,videos`;
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }

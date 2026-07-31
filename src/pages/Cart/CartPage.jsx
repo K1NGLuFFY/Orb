@@ -4,6 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Common/Navbar';
 import Footer from '../../components/Common/Footer';
+import EmptyState from '../../components/Common/EmptyState';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -232,20 +233,13 @@ const CartPage = () => {
 
           </div>
         ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '6rem 2rem',
-            background: 'var(--panel)',
-            border: '1px dashed var(--hairline)',
-            borderRadius: '6px'
-          }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '2rem' }}>
-              Your shelf is empty. Browse the catalog to add something.
-            </p>
-            <Link to="/browse" className="btn btn-primary" style={{ padding: '0.85rem 2rem' }}>
-              Browse physical catalog
-            </Link>
-          </div>
+          <EmptyState
+            type="cart"
+            title="Your shelf is empty"
+            description="Add something worth collecting."
+            actionText="Browse Catalog"
+            actionLink="/browse"
+          />
         )}
 
       </main>

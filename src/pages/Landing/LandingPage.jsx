@@ -4,6 +4,7 @@ import { storageHelper } from '../../utils/storageHelper';
 import Navbar from '../../components/Common/Navbar';
 import HeroCarousel from '../../components/Common/HeroCarousel';
 import CategoryRow from '../../components/Common/CategoryRow';
+import SkeletonCard from '../../components/Common/SkeletonCard';
 
 import { getPopularMovies } from '../../services/tmdbApi';
 import { getPopularAnime } from '../../services/jikanApi';
@@ -165,7 +166,9 @@ const LandingPage = () => {
             <div style={{ height: '30px', background: 'var(--panel)', width: '200px', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
             <div style={{ display: 'flex', gap: '1.25rem', overflowX: 'hidden' }}>
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} style={{ width: '160px', height: '240px', background: 'var(--panel)', borderRadius: '6px', opacity: 0.5, animation: 'pulse 1.5s infinite' }} />
+                <div key={i} style={{ minWidth: '220px', height: '340px' }}>
+                  <SkeletonCard />
+                </div>
               ))}
             </div>
           </div>

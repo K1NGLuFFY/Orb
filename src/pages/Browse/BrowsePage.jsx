@@ -5,6 +5,8 @@ import ProductCard from '../../components/Common/ProductCard';
 import ProductGrid from '../../components/Common/ProductGrid';
 import Navbar from '../../components/Common/Navbar';
 import Footer from '../../components/Common/Footer';
+import SkeletonCard from '../../components/Common/SkeletonCard';
+import EmptyState from '../../components/Common/EmptyState';
 import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
 import { getPopularAnime, searchAnime } from '../../services/jikanApi';
 import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
@@ -20,26 +22,6 @@ const categoryColors = {
   Movie: 'var(--spine-movies)'
 };
 
-const SkeletonCard = () => (
-  <div style={{
-    background: 'var(--panel)',
-    borderRadius: '6px',
-    border: '1px solid var(--hairline)',
-    aspectRatio: '2/3',
-    maxWidth: '200px',
-    width: '100%',
-    margin: '0 auto',
-    padding: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    opacity: 0.6,
-    animation: 'pulse 1.5s infinite ease-in-out'
-  }}>
-    <div style={{ background: 'var(--panel-raised)', width: '100%', height: '100%', borderRadius: '4px' }} />
-  </div>
-);
-
 const BrowsePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -53,6 +35,7 @@ const BrowsePage = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [loadingPopular, setLoadingPopular] = useState(false);
 
@@ -266,6 +249,7 @@ const BrowsePage = () => {
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
+    setShowSuggestions(true);
     const newParams = new URLSearchParams(searchParams);
     if (val === '') newParams.delete('q'); else newParams.set('q', val);
     setSearchParams(newParams);
@@ -391,12 +375,59 @@ const BrowsePage = () => {
                 placeholder="Search titles, creators, genres..." 
                 value={searchQuery} 
                 onChange={handleSearchChange} 
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 className="form-input" 
                 style={{ paddingLeft: '1rem', fontSize: '1rem' }} 
               />
               {isSearching && (
                 <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--signal)' }}>
                   FETCHING...
+                </div>
+              )}
+              {showSuggestions && searchQuery && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '0.5rem',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--hairline)',
+                  borderRadius: '6px',
+                  zIndex: 100,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                  maxHeight: '300px',
+                  overflowY: 'auto'
+                }}>
+                  {filteredProducts.slice(0, 5).map(p => (
+                    <Link
+                      key={p.id}
+                      to={`/product/${p.id}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '0.75rem 1rem',
+                        borderBottom: '1px solid var(--hairline)',
+                        textDecoration: 'none',
+                        color: 'var(--text)'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--panel-raised)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <img src={p.imageUrl} alt={p.title} style={{ width: '40px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{p.title}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.category} • ${p.price.toFixed(2)}</div>
+                      </div>
+                    </Link>
+                  ))}
+                  {filteredProducts.length === 0 && !isSearching && (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No results found
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -434,18 +465,22 @@ const BrowsePage = () => {
 
           {loadingPopular ? (
             <ProductGrid>
-              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} style={{ minWidth: '200px', height: '340px' }}>
+                  <SkeletonCard />
+                </div>
+              ))}
             </ProductGrid>
           ) : filteredProducts.length > 0 ? (
             <ProductGrid>
               {filteredProducts.map(product => <ProductCard key={product.id} product={product} />)}
             </ProductGrid>
           ) : (
-            <div style={{ textAlign: 'center', padding: '6rem 2rem', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px', marginTop: '1rem' }}>
-              <p style={{ color: 'var(--text)', fontSize: '1.15rem', marginBottom: '0.5rem', fontFamily: 'var(--font-body)' }}>
-                Nothing matches '{searchQuery || selectedCategory}'. Try a different search.
-              </p>
-            </div>
+            <EmptyState
+              type="search"
+              title="Nothing on this shelf"
+              description={`Try a different search or browse other categories.`}
+            />
           )}
         </main>
       </div>

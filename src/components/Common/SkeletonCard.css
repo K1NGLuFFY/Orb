@@ -1,0 +1,76 @@
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.skeleton-image {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  background: var(--panel-raised);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-grow: 1;
+}
+
+.skeleton-title, .skeleton-subtitle, .skeleton-price {
+  background: var(--panel-raised);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-title {
+  height: 1.25rem;
+  width: 85%;
+}
+
+.skeleton-subtitle {
+  height: 0.85rem;
+  width: 60%;
+}
+
+.skeleton-price {
+  height: 1.2rem;
+  width: 40%;
+  margin-top: auto;
+}
+
+/* Shimmer Animation */
+.skeleton-image::after,
+.skeleton-title::after,
+.skeleton-subtitle::after,
+.skeleton-price::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

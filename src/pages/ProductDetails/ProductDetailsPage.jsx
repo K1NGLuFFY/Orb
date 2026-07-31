@@ -13,6 +13,8 @@ import { getComicDetails } from '../../services/comicApi';
 import { FALLBACK_IMAGE } from '../../components/Common/ProductCard';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 import { supabase } from '../../lib/supabaseClient';
+import TrailerPlayer from '../../components/Common/TrailerPlayer';
+import SkeletonCard from '../../components/Common/SkeletonCard';
 
 const isApiProduct = (productId) =>
   typeof productId === 'string' && productId.startsWith('api-');
@@ -156,17 +158,25 @@ const ProductDetailsPage = () => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'var(--ink)',
-        color: 'var(--text)'
-      }}>
-        <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>
-          RETRIEVING ITEM DOSSIER...
-        </div>
+      <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Navbar />
+        <section className="product-detail-hero animate-fade-in-up">
+          <div className="product-hero-backdrop"></div>
+          <div className="product-hero-content">
+            <div className="product-hero-flex-row product-detail-mobile-layout">
+              <div className="product-poster-wrapper product-detail-poster-wrapper">
+                 <div style={{ width: '100%', aspectRatio: '2/3' }}>
+                    <SkeletonCard />
+                 </div>
+              </div>
+              <div className="product-info-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ height: '2rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '60%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
+                <div style={{ height: '1.5rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '40%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
+                <div style={{ height: '4rem', background: 'var(--panel-raised)', borderRadius: '4px', width: '100%', animation: 'pulse 1.5s infinite ease-in-out', opacity: 0.6 }} />
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
@@ -394,7 +404,7 @@ const ProductDetailsPage = () => {
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description & Trailer */}
               <div style={{ textAlign: 'left' }}>
                 <h3 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>
                   Item Details
@@ -402,6 +412,9 @@ const ProductDetailsPage = () => {
                 <p style={{ color: 'var(--text)', lineHeight: '1.6', fontSize: '0.95rem' }}>
                   {product.description}
                 </p>
+                {(product.category === 'Movie' || product.category === 'Anime') && product.trailerId && (
+                  <TrailerPlayer trailerId={product.trailerId} />
+                )}
               </div>
 
               {/* Technical Specifications Grid */}

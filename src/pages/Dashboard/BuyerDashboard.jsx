@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
 import { useCart } from '../../context/CartContext';
 import ProductCard from '../../components/Common/ProductCard';
+import EmptyState from '../../components/Common/EmptyState';
 import { useDeleteAccount } from '../../hooks/useDeleteAccount';
 
 import { getMovieDetails } from '../../services/tmdbApi';
@@ -413,20 +414,13 @@ const BuyerDashboard = () => {
               ))}
             </div>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '6rem 2rem',
-              background: 'var(--panel)',
-              border: '1px dashed var(--hairline)',
-              borderRadius: '6px'
-            }}>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                Your shelf is empty. Browse the catalog to add something.
-              </p>
-              <Link to="/browse" className="btn btn-primary">
-                Explore Catalog
-              </Link>
-            </div>
+            <EmptyState
+              type="wishlist"
+              title="Nothing saved yet"
+              description="Bookmark items you're eyeing for later."
+              actionText="Browse Catalog"
+              actionLink="/browse"
+            />
           )}
         </div>
       )}

@@ -51,6 +51,13 @@ function normalizeMovie(item, index = 0) {
   const rating = item.vote_average ? parseFloat((item.vote_average / 2).toFixed(1)) : 4.0;
   const releaseYear = item.release_date ? item.release_date.split('-')[0] : 'N/A';
 
+  // Extract Trailer ID if available
+  let trailerId = null;
+  if (item.videos?.results) {
+    const trailer = item.videos.results.find(v => v.site === 'YouTube' && v.type === 'Trailer');
+    if (trailer) trailerId = trailer.key;
+  }
+
   return {
     id: `api-movie-${tmdbId}`,
     title: `${item.title || item.original_title || 'Untitled Movie'} Blu-ray`,
@@ -64,6 +71,7 @@ function normalizeMovie(item, index = 0) {
     price,
     stock,
     rating,
+    trailerId,
     createdAt: new Date(new Date('2026-06-17T12:00:00Z').getTime() + index * 6 * 3600 * 1000).toISOString()
   };
 }

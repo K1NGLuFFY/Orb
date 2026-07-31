@@ -45,6 +45,12 @@ function normalizeAnime(item, index = 0) {
   const price = generatePriceFromId(`api-anime-${malId}`, 'Anime');
   const stock = (malId % 10) + 3;
 
+  // Extract Trailer ID if available
+  let trailerId = null;
+  if (item.trailer?.youtube_id) {
+    trailerId = item.trailer.youtube_id;
+  }
+
   return {
     id: `api-anime-${malId}`,
     title: `${item.title_english || item.title || 'Untitled Anime'} Blu-ray Box Set`,
@@ -58,6 +64,7 @@ function normalizeAnime(item, index = 0) {
     price,
     stock,
     rating,
+    trailerId,
     createdAt: new Date(new Date('2026-06-01T12:00:00Z').getTime() + index * 6 * 3600 * 1000).toISOString()
   };
 }
