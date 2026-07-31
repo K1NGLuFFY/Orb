@@ -27,14 +27,6 @@ const ProductCard = ({ product, variant = 'standard', overlayBadges = false }) =
   const fallbackSrc = placeholders[product.category] || bookPlaceholder;
   const imageUrl = product.imageUrl && product.imageUrl.trim() !== '' ? product.imageUrl : fallbackSrc;
 
-  // Determine aspect ratio class name based on variant or product category
-  let cardClass = 'poster-card';
-  if (variant === 'landscape') {
-    cardClass = 'landscape-card';
-  } else if (product.category === 'Book' || product.category === 'Manga') {
-    cardClass = 'book-card';
-  }
-
   const handleAddToCart = (e) => {
     e.preventDefault(); // Prevent React Router link trigger
     e.stopPropagation(); // Prevent route activation bubble
@@ -42,75 +34,69 @@ const ProductCard = ({ product, variant = 'standard', overlayBadges = false }) =
   };
 
   return (
-    <Link className="media-card-link" to={`/product/${product.id}`}>
-      <article className={`media-card ${cardClass}`}>
-        <figure className="card-poster">
-          <img 
-            src={imageUrl} 
-            loading="lazy" 
-            alt={product.title} 
-            onError={(e) => {
-              if (e.target.src !== fallbackSrc) {
-                e.target.src = fallbackSrc;
-              }
-            }}
-          />
-          
-          {/* Sold Out Overlay */}
-          {product.stock === 0 && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(10, 10, 10, 0.85)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 7
+    <Link to={`/product/${product.id}`} className="premium-card">
+      <div className="premium-card-image-wrapper">
+        <img 
+          src={imageUrl} 
+          alt={product.title} 
+          loading="lazy" 
+          onError={(e) => {
+            if (e.target.src !== fallbackSrc) {
+              e.target.src = fallbackSrc;
+            }
+          }}
+        />
+        
+        {/* Sold Out Overlay */}
+        {product.stock === 0 && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(10, 10, 10, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 7
+          }}>
+            <span style={{
+              border: '1px solid var(--signal)',
+              color: 'var(--signal)',
+              padding: '4px 8px',
+              fontSize: '0.65rem',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.15em',
+              borderRadius: '3px',
+              transform: 'rotate(-5deg)',
+              boxShadow: '0 0 8px rgba(255, 84, 0, 0.5)'
             }}>
-              <span style={{
-                border: '1px solid var(--signal)',
-                color: 'var(--signal)',
-                padding: '4px 8px',
-                fontSize: '0.65rem',
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                letterSpacing: '0.15em',
-                borderRadius: '3px',
-                transform: 'rotate(-5deg)',
-                boxShadow: 'var(--signal-glow)'
-              }}>
-                Sold Out
-              </span>
-            </div>
+              Sold Out
+            </span>
+          </div>
+        )}
+
+        <div className="premium-card-overlay">
+          {product.stock > 0 && (
+            <button 
+              className="premium-card-btn"
+              onClick={handleAddToCart}
+            >
+              Add to Cart
+            </button>
           )}
-
-          {/* HOVER OVERLAY: Hidden by default, slides up on hover */}
-          <div className="card-overlay">
-            {product.stock > 0 && (
-              <button 
-                type="button" 
-                className="btn-add-cart"
-                onClick={handleAddToCart}
-              >
-                Add to Cart
-              </button>
-            )}
-          </div>
-        </figure>
-
-        {/* METADATA */}
-        <div className="card-metadata">
-          <h3 className="card-title">{product.title}</h3>
-          <span className="card-creator">{product.creator}</span>
-          <div className="card-economics">
-            <span className="card-price">${product.price.toFixed(2)}</span>
-            <span className="card-rating">★ {product.rating ? product.rating.toFixed(1) : '0.0'}</span>
-          </div>
         </div>
-      </article>
+      </div>
+      <div className="premium-card-info">
+        <div className="premium-card-type">{product.category}</div>
+        <h3 className="premium-card-title">{product.title}</h3>
+        <div className="premium-card-meta">
+          <span className="premium-card-price">${product.price.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-muted)' }}>★ {product.rating ? product.rating.toFixed(1) : '0.0'}</span>
+        </div>
+      </div>
     </Link>
   );
 };

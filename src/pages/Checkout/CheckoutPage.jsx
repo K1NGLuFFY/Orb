@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { supabase } from '../../lib/supabaseClient';
+import Footer from '../../components/Common/Footer';
 
 /** Returns true if the product id belongs to a live API (no real stock) */
 const isApiProduct = (productId) =>
@@ -27,7 +28,6 @@ const CheckoutPage = () => {
   const [shippingForm, setShippingForm] = useState({
     fullName:   currentUser?.name  || '',
     email:      currentUser?.email || '',
-    address:    '',
     address:    '',
   });
 
@@ -179,8 +179,6 @@ const CheckoutPage = () => {
                 <input type="text" value={shippingForm.address} onChange={e => setShippingForm({ ...shippingForm, address: e.target.value })} className="form-input" placeholder="e.g. 123 Collector Lane, Shelf City" required />
               </div>
 
-
-
               <div className="checkout-footer-row" style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem', marginTop: '1rem' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Amount Due</span>
@@ -262,9 +260,7 @@ TOTAL CHARGED:                          $${invoice.total.toFixed(2)}
         )}
       </main>
 
-      <footer style={{ padding: '2rem', borderTop: '1px solid var(--hairline)', backgroundColor: 'var(--panel)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'auto' }}>
-        <span>&copy; 2026 Orbit Checkout System. Secure Transactions.</span>
-      </footer>
+      <Footer />
     </div>
   );
 };

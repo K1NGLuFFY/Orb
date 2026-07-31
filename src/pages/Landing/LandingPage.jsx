@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { storageHelper } from '../../utils/storageHelper';
 import Navbar from '../../components/Common/Navbar';
-import HeroBanner from '../../components/Common/HeroBanner';
+import HeroCarousel from '../../components/Common/HeroCarousel';
 import CategoryRow from '../../components/Common/CategoryRow';
 
 import { getPopularMovies } from '../../services/tmdbApi';
@@ -37,7 +37,6 @@ const LandingPage = () => {
 
   // Load local and fetch live popular products
   useEffect(() => {
-    // 1. Scroll listener
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
@@ -104,17 +103,24 @@ const LandingPage = () => {
   const comics = combinedProducts.filter(p => p.category === 'Comic');
   const manga = combinedProducts.filter(p => p.category === 'Manga');
 
-  // Curate a featured item for the Hero Banner
-  const getFeaturedItem = () => {
-    if (combinedProducts.length === 0) return null;
-    const choices = combinedProducts.filter(p => p.imageUrl && (p.category === 'Movie' || p.category === 'Anime'));
-    if (choices.length > 0) {
-      return choices.sort((a, b) => (b.rating || 0) - (a.rating || 0))[0];
+  // Curate 3 featured items for the Hero Carousel
+  const getFeaturedItems = () => {
+    if (combinedProducts.length === 0) return [];
+    let choices = combinedProducts.filter(p => p.imageUrl && (p.category === 'Movie' || p.category === 'Anime'));
+    if (choices.length === 0) {
+      choices = combinedProducts;
     }
-    return combinedProducts[0];
+    
+    return choices.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3).map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description || p.creator,
+      image: p.imageUrl,
+      category: p.category
+    }));
   };
 
-  const featuredItem = getFeaturedItem();
+  const featuredItems = getFeaturedItems();
 
   return (
     <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -125,15 +131,17 @@ const LandingPage = () => {
       {/* 2. PAGE LAYOUT WRAPPER */}
       <div className="landing-layout animate-fade-in-up">
         
-        {/* Announcement Ticker Banner (flows underneath Navbar, scrolls away naturally) */}
+        {/* Announcement Ticker Banner */}
         {announcementTicker && (
           <div className="announcement-banner">
             {announcementTicker}
           </div>
         )}
 
-        {/* 3. IMMERSIVE HERO BANNER */}
-        <HeroBanner products={combinedProducts} />
+        {/* 3. IMMERSIVE HERO CAROUSEL */}
+        {!loading && featuredItems.length > 0 && (
+          <HeroCarousel items={featuredItems} />
+        )}
       </div>
 
       {/* Pulse Keyframes style */}
@@ -150,8 +158,7 @@ const LandingPage = () => {
         padding: '3rem 0',
         backgroundColor: 'var(--ink)',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '2.5rem'
+        flexDirection: 'column'
       }}>
         {loading ? (
           <div style={{ padding: '4rem 2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -200,34 +207,18 @@ const LandingPage = () => {
       </section>
 
       {/* 5. FOOTER */}
-      <footer style={{
-        padding: '4rem 2rem 2rem',
-        backgroundColor: 'var(--ink)',
-        fontSize: '0.85rem',
-        color: 'var(--text-muted)'
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '3rem',
-          marginBottom: '3rem'
-        }}>
-          <div>
-            <h4 style={{ color: 'var(--text)', fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: '1rem' }}>
-              ORBIT
-            </h4>
-            <p style={{ lineHeight: '1.6' }}>
+      <footer className="polished-footer">
+        <div className="footer-grid">
+          <div className="footer-brand">
+            <span className="logo">ORBIT</span>
+            <p>
               A simulated React physical-media repository catalog. Powered by Supabase for authentication and database persistence.
             </p>
           </div>
 
           <div>
-            <h4 style={{ color: 'var(--text)', fontWeight: 'bold', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05rem', marginBottom: '1rem' }}>
-              Categories
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <h4 className="footer-column-title">Categories</h4>
+            <div className="footer-links">
               <Link to="/browse?category=Anime">Anime Shelf</Link>
               <Link to="/browse?category=Manga">Manga Archives</Link>
               <Link to="/browse?category=Book">Rare Books</Link>
@@ -237,36 +228,31 @@ const LandingPage = () => {
           </div>
 
           <div>
-            <h4 style={{ color: 'var(--text)', fontWeight: 'bold', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05rem', marginBottom: '1rem' }}>
-              Account Access
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <h4 className="footer-column-title">Account Access</h4>
+            <div className="footer-links">
               <Link to="/login">Log In</Link>
               <Link to="/register">Create Account</Link>
               <Link to="/register?role=Seller">Seller Registration</Link>
             </div>
           </div>
+          
+          <div>
+            <h4 className="footer-column-title">Company</h4>
+            <div className="footer-links">
+              <Link to="/">About Us</Link>
+              <Link to="/">Terms of Service</Link>
+              <Link to="/">Privacy Policy</Link>
+            </div>
+          </div>
         </div>
 
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          paddingTop: '2rem',
-          borderTop: '1px solid var(--hairline)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
+        <div className="footer-bottom">
           <span>&copy; 2026 Orbit Catalog Inc. Simulated transactions only.</span>
-          <span style={{ fontSize: '0.75rem', maxWidth: '400px', textAlign: 'right' }}>
+          <span style={{ maxWidth: '400px', textAlign: 'right' }}>
             Disclaimer: Powered by Supabase. This product uses sample artwork references but does not establish commercial sales.
           </span>
         </div>
       </footer>
-
-
     </div>
   );
 };

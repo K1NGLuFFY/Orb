@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../../components/Common/Navbar';
 import CategoryRow from '../../components/Common/CategoryRow';
+import Footer from '../../components/Common/Footer';
 import { getMovieDetails, getPopularMovies } from '../../services/tmdbApi';
 import { getAnimeDetails, getPopularAnime } from '../../services/jikanApi';
 import { getBookDetails, getPopularBooks } from '../../services/googleBooksApi';
@@ -533,18 +534,7 @@ const ProductDetailsPage = () => {
         </section>
       )}
 
-      {/* Footer */}
-      <footer style={{
-        padding: '2rem',
-        borderTop: '1px solid var(--hairline)',
-        backgroundColor: 'var(--panel)',
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        color: 'var(--text-muted)',
-        marginTop: 'auto'
-      }}>
-        <span>&copy; 2026 Orbit Media Repository. Simulated system.</span>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { storageHelper } from '../../utils/storageHelper';
 import ProductCard from '../../components/Common/ProductCard';
 import ProductGrid from '../../components/Common/ProductGrid';
 import Navbar from '../../components/Common/Navbar';
+import Footer from '../../components/Common/Footer';
 import { getPopularMovies, searchMovies } from '../../services/tmdbApi';
 import { getPopularAnime, searchAnime } from '../../services/jikanApi';
 import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
@@ -24,7 +25,7 @@ const SkeletonCard = () => (
     background: 'var(--panel)',
     borderRadius: '6px',
     border: '1px solid var(--hairline)',
-    height: '340px',
+    aspectRatio: '2/3',
     maxWidth: '200px',
     width: '100%',
     margin: '0 auto',
@@ -35,14 +36,7 @@ const SkeletonCard = () => (
     opacity: 0.6,
     animation: 'pulse 1.5s infinite ease-in-out'
   }}>
-    <div style={{ background: 'var(--panel-raised)', width: '100%', height: '180px', borderRadius: '4px' }} />
-    <div style={{ background: 'var(--panel-raised)', width: '60%', height: '12px', borderRadius: '2px' }} />
-    <div style={{ background: 'var(--panel-raised)', width: '90%', height: '20px', borderRadius: '2px' }} />
-    <div style={{ background: 'var(--panel-raised)', width: '40%', height: '12px', borderRadius: '2px' }} />
-    <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', marginTop: 'auto' }}>
-      <div style={{ background: 'var(--panel-raised)', width: '30%', height: '15px', borderRadius: '2px' }} />
-      <div style={{ background: 'var(--panel-raised)', width: '40%', height: '10px', borderRadius: '2px' }} />
-    </div>
+    <div style={{ background: 'var(--panel-raised)', width: '100%', height: '100%', borderRadius: '4px' }} />
   </div>
 );
 
@@ -95,7 +89,6 @@ const BrowsePage = () => {
       try {
         const dbProducts = await storageHelper.getProducts();
         if (active) {
-          // No need to filter seeded products like before because they are already separated in Supabase products table
           setLocalProducts(dbProducts);
         }
       } catch (err) {
@@ -210,24 +203,18 @@ const BrowsePage = () => {
     };
   }, [searchQuery]);
 
-  // Deep text normalization: lowercase, strip accents (NFD), remove diacritics
   const normalizeText = (str) =>
     (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  // Build the searchable product corpus from API data + local products (no featured bias)
   const combinedProducts = useMemo(() => {
     const normalizedQuery = normalizeText(searchQuery);
 
-    // When there's an active search query, use only API search results + matching local items
-    // When there's NO query, show popular (API) items + all local items (browsing mode)
     if (!normalizedQuery) {
-      // Deduplicate by id, local products take precedence
       const idSet = new Set(localProducts.map(p => p.id));
       const deduped = [...localProducts, ...popularProducts.filter(p => !idSet.has(p.id))];
       return deduped;
     }
 
-    // Build a combined searchable string from all relevant fields per product
     const matchesQuery = (product) => {
       const fields = [
         product.title,
@@ -240,14 +227,9 @@ const BrowsePage = () => {
       return combined.includes(normalizedQuery);
     };
 
-    // Filter local products against the query (no hardcoded featured list)
     const matchingLocal = localProducts.filter(matchesQuery);
-
-    // API search results are already query-relevant but also run them through
-    // client-side normalization for consistency
     const matchingApi = searchResults.filter(matchesQuery);
 
-    // Deduplicate by id, local takes precedence
     const idSet = new Set(matchingLocal.map(p => p.id));
     return [...matchingLocal, ...matchingApi.filter(p => !idSet.has(p.id))];
   }, [searchQuery, localProducts, popularProducts, searchResults]);
@@ -298,25 +280,38 @@ const BrowsePage = () => {
         {/* Sidebar Filters */}
         <aside className="browse-sidebar">
           <div>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.2rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
               Categories
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {['All', 'Anime', 'Manga', 'Book', 'Comic', 'Movie'].map(cat => {
                 const isSelected = selectedCategory === cat;
                 return (
                   <button 
                     key={cat} 
                     onClick={() => handleCategorySelect(cat)} 
-                    className={`category-pill ${isSelected ? 'active' : ''}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      background: 'transparent',
+                      border: 'none',
+                      color: isSelected ? 'var(--text)' : 'var(--text-muted)',
+                      fontWeight: isSelected ? '600' : 'normal',
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      padding: '0.25rem 0',
+                      transition: 'color 0.2s ease'
+                    }}
                   >
                     <span 
                       style={{ 
-                        width: '6px', 
-                        height: '6px', 
+                        width: '8px', 
+                        height: '8px', 
                         borderRadius: '50%', 
                         backgroundColor: categoryColors[cat] || 'var(--signal)', 
-                        opacity: isSelected ? 1 : 0.4 
+                        opacity: isSelected ? 1 : 0.2 
                       }} 
                     />
                     {cat === 'Book' ? 'Books' : cat === 'Comic' ? 'Comics' : cat === 'Movie' ? 'Movies' : cat}
@@ -327,7 +322,7 @@ const BrowsePage = () => {
           </div>
 
           <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '1.5rem' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.1rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', textTransform: 'uppercase', fontSize: '1.2rem', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
               Filter By
             </h3>
             
@@ -343,7 +338,7 @@ const BrowsePage = () => {
               </select>
             </div>
             
-            <div className="form-group" style={{ marginTop: '1.25rem' }}>
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Max Price</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>${priceRange.max}</span>
@@ -358,33 +353,31 @@ const BrowsePage = () => {
               />
             </div>
             
-            {/* iOS Switch Toggle for stock availability */}
-            <div style={{ marginTop: '1.5rem' }}>
-              <div className="ios-toggle-container">
-                <span className="ios-switch">
-                  <input 
-                    type="checkbox" 
-                    id="stock-check" 
-                    checked={inStockOnly} 
-                    onChange={(e) => setInStockOnly(e.target.checked)} 
-                  />
-                  <span className="ios-slider" />
-                </span>
-                <label 
-                  htmlFor="stock-check" 
-                  style={{ 
-                    fontSize: '0.85rem', 
-                    color: 'var(--text-muted)', 
-                    cursor: 'pointer', 
-                    userSelect: 'none',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}
-                >
-                  In Stock Only
-                </label>
-              </div>
+            <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input 
+                type="checkbox" 
+                id="stock-check" 
+                checked={inStockOnly} 
+                onChange={(e) => setInStockOnly(e.target.checked)} 
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  accentColor: 'var(--signal)',
+                  cursor: 'pointer'
+                }}
+              />
+              <label 
+                htmlFor="stock-check" 
+                style={{ 
+                  fontSize: '0.9rem', 
+                  color: 'var(--text)', 
+                  cursor: 'pointer', 
+                  userSelect: 'none',
+                  fontWeight: '500'
+                }}
+              >
+                In Stock Only
+              </label>
             </div>
           </div>
         </aside>
@@ -435,8 +428,8 @@ const BrowsePage = () => {
             </div>
           )}
 
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase' }}>
-            {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} of ${combinedProducts.length} catalog items`}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>
+            {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} results`}
           </div>
 
           {loadingPopular ? (
@@ -457,9 +450,7 @@ const BrowsePage = () => {
         </main>
       </div>
 
-      <footer style={{ padding: '2rem', borderTop: '1px solid var(--hairline)', backgroundColor: 'var(--panel)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'auto' }}>
-        <span>&copy; 2026 Orbit Catalog. Live API Integration & Simulated local transaction framework.</span>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -39,7 +39,6 @@ const CategoryRow = ({ title, products }) => {
       el.addEventListener('scroll', checkScrollBoundaries, { passive: true });
       checkScrollBoundaries();
 
-      // Trigger checks on a short delay to account for rendering/layout shifts
       const timer = setTimeout(checkScrollBoundaries, 400);
       window.addEventListener('resize', checkScrollBoundaries);
 
@@ -54,7 +53,6 @@ const CategoryRow = ({ title, products }) => {
   const handleScroll = (direction) => {
     if (trackRef.current) {
       const { clientWidth } = trackRef.current;
-      // Scroll by 75% of viewable width for premium browsing pacing
       const amount = direction === 'left' ? -clientWidth * 0.75 : clientWidth * 0.75;
       trackRef.current.scrollBy({ left: amount, behavior: 'smooth' });
     }
@@ -64,48 +62,44 @@ const CategoryRow = ({ title, products }) => {
   const subtitle = categorySubtitles[title] || 'Handpicked dossier collections';
 
   return (
-    <div className="shelf-wrapper">
-      {/* Shelf Header */}
-      <div className="shelf-header">
-        <div className="shelf-title-area">
-          <h2 className="shelf-title">
-            <span className="accent">//</span> {title}
-          </h2>
-          <span className="shelf-subtitle">{subtitle}</span>
-        </div>
-        <Link to={`/browse?category=${browseCategory}`} className="shelf-see-all">
-          See All
+    <div className="category-row-section">
+      <div className="category-row-header">
+        <h2 className="category-row-title">
+          <span>//</span> {title}
+        </h2>
+        <Link to={`/browse?category=${browseCategory}`} className="category-row-see-all">
+          Explore All {'>'}
         </Link>
       </div>
 
-      {/* Scrollable Track Container */}
-      <div className="shelf-track-container">
-        {/* Left Arrow */}
-        <button
-          type="button"
-          onClick={() => handleScroll('left')}
-          className={`shelf-arrow shelf-arrow-left ${showLeftArrow ? 'visible' : ''}`}
-          aria-label="Scroll left"
-        >
-          ‹
-        </button>
+      <div className="category-row-container">
+        {showLeftArrow && (
+          <button
+            type="button"
+            onClick={() => handleScroll('left')}
+            className="scroll-arrow-btn left"
+            aria-label="Scroll left"
+          >
+            &lt;
+          </button>
+        )}
 
-        {/* The horizontal scroll track */}
-        <div className="shelf-track" ref={trackRef}>
+        <div className="category-scroll-area" ref={trackRef}>
           {products.map(product => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
 
-        {/* Right Arrow */}
-        <button
-          type="button"
-          onClick={() => handleScroll('right')}
-          className={`shelf-arrow shelf-arrow-right ${showRightArrow ? 'visible' : ''}`}
-          aria-label="Scroll right"
-        >
-          ›
-        </button>
+        {showRightArrow && (
+          <button
+            type="button"
+            onClick={() => handleScroll('right')}
+            className="scroll-arrow-btn right"
+            aria-label="Scroll right"
+          >
+            &gt;
+          </button>
+        )}
       </div>
     </div>
   );

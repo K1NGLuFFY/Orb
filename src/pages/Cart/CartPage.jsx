@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Common/Navbar';
+import Footer from '../../components/Common/Footer';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -17,14 +18,13 @@ const CartPage = () => {
   const { currentUser } = useAuth();
   const { cart, updateQuantity, removeFromCart } = useCart();
   const [cartItems, setCartItems] = useState([]);
-  // Sync cartItems whenever cart state changes
+  
   useEffect(() => {
     setCartItems(cart);
   }, [cart]);
 
-  // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = subtotal; // Simulated without tax/shipping for demo simplicity
+  const total = subtotal;
 
   const handleCheckoutRedirect = () => {
     if (!currentUser) {
@@ -250,18 +250,7 @@ const CartPage = () => {
 
       </main>
 
-      {/* Footer */}
-      <footer style={{
-        padding: '2rem',
-        borderTop: '1px solid var(--hairline)',
-        backgroundColor: 'var(--panel)',
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        color: 'var(--text-muted)',
-        marginTop: 'auto'
-      }}>
-        <span>&copy; 2026 Orbit Cart. Simulated billing transactions.</span>
-      </footer>
+      <Footer />
 
     </div>
   );
