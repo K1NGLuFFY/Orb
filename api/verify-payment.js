@@ -110,7 +110,7 @@ export default async function handler(req, res) {
 
     // Compare amounts (Paystack amount is in kobo, so * 100)
     const amountPaidKobo = paystackData.data.amount;
-    const USD_TO_NGN_RATE = 1500;
+    const USD_TO_NGN_RATE = 300;
     const expectedKobo = Math.round(expectedTotal * USD_TO_NGN_RATE * 100);
 
     if (amountPaidKobo < expectedKobo) {
@@ -168,9 +168,9 @@ export default async function handler(req, res) {
             <p>Your order (Receipt: ${reference}) has been successfully verified.</p>
             <h3>Order Summary:</h3>
             <ul>
-              ${orderItems.map(item => `<li>${item.quantity}x ${item.title} - ₦${(item.price * 1500).toLocaleString()}</li>`).join('')}
+              ${orderItems.map(item => `<li>${item.quantity}x ${item.title} - ₦${(item.price * 300).toLocaleString()}</li>`).join('')}
             </ul>
-            <p><strong>Total Paid:</strong> ₦${(expectedTotal * 1500).toLocaleString()}</p>
+            <p><strong>Total Paid:</strong> ₦${(expectedTotal * 300).toLocaleString()}</p>
             <p>Date: ${new Date().toLocaleString()}</p>
           </div>
         `

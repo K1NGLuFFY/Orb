@@ -237,8 +237,15 @@ a {
   display: grid;
   /* This creates responsive columns that never get smaller than 180px or larger than 1fr */
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 20px;
+  gap: 24px;
   padding: 24px;
+}
+
+/* Ensure premium cards fill the grid cells rather than overflowing them */
+.catalog-grid .premium-card {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
 }
 
 .product-card {

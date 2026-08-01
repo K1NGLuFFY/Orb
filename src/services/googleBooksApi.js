@@ -132,20 +132,7 @@ export async function getPopularBooks(signal) {
     return (data.items || []).map((item, idx) => normalizeBook(item, idx));
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to fetch popular books from Google Books API, trying Open Library:', err);
-    return getPopularBooksFromOpenLibrary(signal);
-  }
-}
-
-async function getPopularBooksFromOpenLibrary(signal) {
-  try {
-    const res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&limit=20`, { signal });
-    if (!res.ok) throw new Error(`Open Library status ${res.status}`);
-    const data = await res.json();
-    return (data.docs || []).map((item, idx) => normalizeOpenLibraryBook(item, idx));
-  } catch (err) {
-    if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to fetch popular books from Open Library, falling back to seed data:', err);
+    console.error('Failed to fetch popular books from Google Books API, falling back to seed data:', err);
     return getLocalFallbacks();
   }
 }
@@ -168,23 +155,7 @@ export async function searchBooks(query, signal) {
     return results;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error(`Failed to search books from Google Books API for "${query}", trying Open Library:`, err);
-    return searchBooksFromOpenLibrary(query, signal);
-  }
-}
-
-async function searchBooksFromOpenLibrary(query, signal) {
-  const normalizedQuery = query.trim().toLowerCase();
-  try {
-    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`, { signal });
-    if (!res.ok) throw new Error(`Open Library search status ${res.status}`);
-    const data = await res.json();
-    const results = (data.docs || []).map((item, idx) => normalizeOpenLibraryBook(item, idx));
-    searchCache.set(normalizedQuery, results);
-    return results;
-  } catch (err) {
-    if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error(`Failed to search books from Open Library for "${query}", falling back to seed data:`, err);
+    console.error(`Failed to search books from Google Books API for "${query}", falling back to seed data:`, err);
     return getLocalFallbacks(query);
   }
 }
@@ -192,10 +163,6 @@ async function searchBooksFromOpenLibrary(query, signal) {
 export async function getBookDetails(id, signal) {
   if (detailsCache.has(id)) {
     return detailsCache.get(id);
-  }
-
-  if (id.startsWith('api-book-ol-')) {
-    return getBookDetailsFromOpenLibrary(id, signal);
   }
 
   const apiId = id.replace('api-book-', '');
@@ -210,47 +177,7 @@ export async function getBookDetails(id, signal) {
     return result;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error(`Failed to fetch book details from Google Books API for "${id}", trying Open Library:`, err);
-    return getBookDetailsFromOpenLibrary(id, signal);
-  }
-}
-
-async function getBookDetailsFromOpenLibrary(id, signal) {
-  const workId = id.replace('api-book-ol-', '').replace('api-book-', '');
-  try {
-    const res = await fetch(`https://openlibrary.org/works/${workId}.json`, { signal });
-    if (!res.ok) throw new Error(`Open Library detail status ${res.status}`);
-    const data = await res.json();
-    
-    const coverId = data.covers && data.covers.length > 0 ? data.covers.find(c => c > 0) : null;
-    const imageUrl = coverId 
-      ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
-      : unsplashUrls[0];
-    
-    const desc = data.description 
-      ? (typeof data.description === 'object' ? data.description.value : data.description)
-      : 'An open library cataloged novel.';
-
-    const result = {
-      id: `api-book-ol-${workId}`,
-      title: data.title || 'Untitled Book',
-      category: 'Book',
-      creator: 'Open Library Creator',
-      description: desc,
-      imageUrl,
-      genre: data.subjects ? data.subjects.slice(0, 3).join(', ') : 'Fiction',
-      releaseYear: data.created ? data.created.value.split('-')[0] : 'N/A',
-      language: 'English',
-      price: 12.99,
-      stock: 6,
-      rating: 4.3,
-      createdAt: new Date().toISOString()
-    };
-    detailsCache.set(id, result);
-    return result;
-  } catch (err) {
-    if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error(`Failed to fetch book details from Open Library for "${id}":`, err);
+    console.error(`Failed to fetch book details from Google Books API for "${id}", falling back to seed data:`, err);
     const fallback = getLocalFallbacks().find(b => b.id === id) || getLocalFallbacks()[0];
     return fallback;
   }

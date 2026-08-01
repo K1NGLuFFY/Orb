@@ -137,6 +137,27 @@ export const storageHelper = {
     return data ?? [];
   },
 
+  insertAnnouncement: async (announcement) => {
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert([announcement])
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  deleteAnnouncement: async (id) => {
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
   // ── SETTINGS ──────────────────────────────────────────────────────────────
 
   getSettings: async () => {
