@@ -23,13 +23,15 @@ const DashboardShell = () => {
           { label: 'Analytics', path: '/dashboard/admin?tab=analytics' },
           { label: 'Staff Roster', path: '/dashboard/admin?tab=staff' },
           { label: 'Announcements', path: '/dashboard/admin?tab=announcements' },
+          { label: 'Reviews', path: '/dashboard/admin?tab=reviews' },
           { label: 'System Settings', path: '/dashboard/admin?tab=settings' }
         ];
       case 'Staff':
         return [
           { label: 'Archival Console', path: '/dashboard/staff' },
           { label: 'Listing Moderation', path: '/dashboard/staff?tab=moderation' },
-          { label: 'User Operations', path: '/dashboard/staff?tab=users' }
+          { label: 'User Operations', path: '/dashboard/staff?tab=users' },
+          { label: 'Reviews', path: '/dashboard/staff?tab=reviews' }
         ];
       case 'Seller':
         return [

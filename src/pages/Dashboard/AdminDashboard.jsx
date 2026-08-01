@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
+import { reviewHelper } from '../../utils/reviewHelper';
 import { supabase } from '../../lib/supabaseClient';
 import { formatCurrency } from '../../utils/currency';
 
@@ -33,6 +34,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   // Selection tables
   const [selectedProductIds, setSelectedProductIds] = useState(new Set());
@@ -76,18 +78,20 @@ const AdminDashboard = () => {
   // Reload DB Helper
   const reloadData = async () => {
     try {
-      const [dbUsers, dbProducts, dbOrders, dbAnnouncements, sysSettings] = await Promise.all([
+      const [dbUsers, dbProducts, dbOrders, dbAnnouncements, sysSettings, dbReviews] = await Promise.all([
         storageHelper.getUsers(),
         storageHelper.getProducts(),
         storageHelper.getOrders(),
         storageHelper.getAnnouncements(),
-        storageHelper.getSettings().catch(() => ({}))
+        storageHelper.getSettings().catch(() => ({})),
+        reviewHelper.getAllReviews().catch(() => [])
       ]);
 
       setUsers(dbUsers);
       setProducts(dbProducts);
       setOrders(dbOrders);
       setAnnouncements(dbAnnouncements);
+      setReviews(dbReviews);
 
       if (sysSettings) {
         setTickerText(sysSettings.announcement_ticker || '');
@@ -287,6 +291,20 @@ const AdminDashboard = () => {
       await storageHelper.updateUser(userId, { deleted_at: new Date().toISOString(), name: 'Deleted User' });
       await reloadData();
       showFeedback('User account soft deleted.');
+    } catch (error) {
+      showFeedback(error.message, 'error');
+    }
+  };
+
+  // Delete Review
+  const handleDeleteReview = async (reviewId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this review?');
+    if (!confirmDelete) return;
+
+    try {
+      await reviewHelper.deleteReview(reviewId);
+      await reloadData();
+      showFeedback('Review deleted successfully.');
     } catch (error) {
       showFeedback(error.message, 'error');
     }
@@ -1330,6 +1348,39 @@ const AdminDashboard = () => {
 
 
 
+        </div>
+      )}
+
+      {/* REVIEWS TAB */}
+      {activeTab === 'reviews' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {reviews.length === 0 ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px' }}>
+              No reviews found.
+            </div>
+          ) : (
+            reviews.map(review => (
+              <div key={review.id} style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', padding: '1.5rem', borderRadius: '6px', position: 'relative' }}>
+                <button 
+                  onClick={() => handleDeleteReview(review.id)}
+                  style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#FF4D6D', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}
+                  title="Delete Review"
+                >
+                  Delete Review
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
+                  <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>Product: {review.product_id}</h4>
+                  <span style={{ color: 'var(--signal)', fontWeight: 'bold' }}>★ {review.rating}/10</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                  {review.comment || 'No written comment.'}
+                </p>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  By: {review.profiles?.name || review.user_id} | {new Date(review.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

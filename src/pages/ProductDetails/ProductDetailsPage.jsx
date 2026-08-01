@@ -16,6 +16,8 @@ import { useProductStockSubscription } from '../../hooks/useProductStockSubscrip
 import { supabase } from '../../lib/supabaseClient';
 import TrailerPlayer from '../../components/Common/TrailerPlayer';
 import SkeletonCard from '../../components/Common/SkeletonCard';
+import { reviewHelper } from '../../utils/reviewHelper';
+import { storageHelper } from '../../utils/storageHelper';
 
 const isApiProduct = (productId) =>
   typeof productId === 'string' && productId.startsWith('api-');
@@ -47,6 +49,11 @@ const ProductDetailsPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [feedbackMessage, setFeedbackMessage] = useState({ text: '', type: '' });
   const [recommendations, setRecommendations] = useState([]);
+
+  const [reviews, setReviews] = useState([]);
+  const [userHasPurchased, setUserHasPurchased] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 10, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Realtime stock update handler
   const handleStockUpdate = useCallback((updatedProduct) => {
@@ -156,6 +163,79 @@ const ProductDetailsPage = () => {
       controller.abort();
     };
   }, [product]);
+
+  // Load reviews and purchase history
+  useEffect(() => {
+    let active = true;
+    async function loadReviewsAndHistory() {
+      if (!id) return;
+      try {
+        const productReviews = await reviewHelper.getReviewsByProduct(id);
+        if (active) {
+          setReviews(productReviews);
+          if (currentUser) {
+            const userReview = productReviews.find(r => r.user_id === currentUser.id);
+            if (userReview) {
+              setReviewForm({ rating: userReview.rating, comment: userReview.comment || '' });
+            }
+          }
+        }
+
+        if (currentUser && currentUser.role === 'Buyer' && active) {
+          const userOrders = await storageHelper.getOrders({ userId: currentUser.id });
+          const hasPurchased = userOrders.some(order => 
+            Array.isArray(order.items) && order.items.some(item => item.productId === id)
+          );
+          if (active) setUserHasPurchased(hasPurchased);
+        }
+      } catch (err) {
+        console.error('Failed to load reviews/history:', err);
+      }
+    }
+    loadReviewsAndHistory();
+    return () => { active = false; };
+  }, [id, currentUser]);
+
+  const orbitRating = reviews.length > 0 
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
+    : null;
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setSubmittingReview(true);
+    try {
+      const updatedReview = await reviewHelper.upsertReview({
+        product_id: id,
+        user_id: currentUser.id,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment
+      });
+      setReviews(prev => {
+        const filtered = prev.filter(r => r.id !== updatedReview.id && r.user_id !== currentUser.id);
+        return [updatedReview, ...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      });
+      showFeedback('Review saved successfully!');
+    } catch (error) {
+      console.error(error);
+      showFeedback('Failed to save review.', 'error');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Are you sure you want to delete this review?')) return;
+    try {
+      await reviewHelper.deleteReview(reviewId);
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+      setReviewForm({ rating: 10, comment: '' });
+      showFeedback('Review deleted.');
+    } catch (error) {
+      console.error(error);
+      showFeedback('Failed to delete review.', 'error');
+    }
+  };
 
   if (loading) {
     return (
@@ -387,20 +467,39 @@ const ProductDetailsPage = () => {
                   </span>
                 </div>
 
-                <div style={{ textAlign: 'left' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                    User Rating
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: '#FFD700', fontSize: '1.5rem' }}>★</span>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '1.5rem',
-                      fontWeight: 'bold'
-                    }}>
-                      {product.rating ? product.rating.toFixed(1) : '0.0'}
+                <div style={{ textAlign: 'left', display: 'flex', gap: '2.5rem', flexWrap: 'wrap' }}>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                      Orbit Community
                     </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>/ 5.0</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: 'var(--signal)', fontSize: '1.5rem' }}>★</span>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {orbitRating ? orbitRating.toFixed(1) : 'N/A'}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>/ 10.0</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                      External Rating
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#FFD700', fontSize: '1.5rem' }}>★</span>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {product.rating ? product.rating.toFixed(1) : '0.0'}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>/ 5.0</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -547,6 +646,118 @@ const ProductDetailsPage = () => {
           <CategoryRow title={`More from ${product.category}`} products={recommendations} />
         </section>
       )}
+
+      {/* Below Fold: Reviews Section */}
+      <section style={{ padding: '3.5rem 1.5rem', backgroundColor: 'var(--panel-base)', borderTop: '1px solid var(--hairline)' }}>
+        <div className="product-detail-mobile-layout" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '1.8rem', marginBottom: '2rem', color: 'var(--text)' }}>Community Reviews</h2>
+          
+          {userHasPurchased && (
+            <div style={{ background: 'var(--panel-raised)', padding: '1.5rem', borderRadius: '8px', marginBottom: '3rem', border: '1px solid var(--hairline)' }}>
+              <h3 style={{ marginBottom: '1rem', color: 'var(--signal)' }}>
+                {reviews.some(r => r.user_id === currentUser.id) ? 'Update Your Review' : 'Write a Review'}
+              </h3>
+              <form onSubmit={handleReviewSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Rating (out of 10)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {[1,2,3,4,5,6,7,8,9,10].map(num => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setReviewForm(prev => ({ ...prev, rating: num }))}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '4px',
+                          border: `1px solid ${reviewForm.rating === num ? 'var(--signal)' : 'var(--hairline)'}`,
+                          background: reviewForm.rating === num ? 'var(--signal)' : 'transparent',
+                          color: reviewForm.rating === num ? '#fff' : 'var(--text)',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Comment (Optional)</label>
+                  <textarea
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      minHeight: '100px',
+                      background: 'var(--ink)',
+                      border: '1px solid var(--hairline)',
+                      color: 'var(--text)',
+                      padding: '0.75rem',
+                      borderRadius: '4px',
+                      fontFamily: 'inherit'
+                    }}
+                    placeholder="What did you think?"
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <button type="submit" disabled={submittingReview} className="btn btn-primary" style={{ padding: '0.75rem 2rem' }}>
+                    {submittingReview ? 'Saving...' : 'Submit Review'}
+                  </button>
+                  {reviews.some(r => r.user_id === currentUser.id) && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const r = reviews.find(r => r.user_id === currentUser.id);
+                        if (r) handleDeleteReview(r.id);
+                      }} 
+                      style={{ background: 'transparent', border: 'none', color: '#ff6b76', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Delete Review
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {reviews.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>No reviews yet. Be the first to review this product!</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {reviews.map(review => (
+                <div key={review.id} style={{ background: 'var(--panel-raised)', padding: '1.25rem', borderRadius: '6px', border: '1px solid var(--hairline)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <div>
+                      <span style={{ fontWeight: 'bold', color: 'var(--text)', marginRight: '1rem' }}>{review.profiles?.name || 'User'}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--signal)' }}>
+                      <span>★</span>
+                      <span style={{ fontWeight: 'bold' }}>{review.rating}/10</span>
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p style={{ color: 'var(--text)', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                      {review.comment}
+                    </p>
+                  )}
+                  {currentUser && (currentUser.role === 'Staff' || currentUser.role === 'Admin') && (
+                     <button
+                       onClick={() => handleDeleteReview(review.id)}
+                       style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#ff6b76', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                     >
+                       [Moderate] Delete Review
+                     </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       <Footer />
     </div>
