@@ -86,13 +86,30 @@ function getLocalFallbacks(query = '') {
     createdAt: new Date(new Date('2026-06-01T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()
   }));
 
-  if (!query) return list;
+  if (!query) return list.map(item => ({ ...item, _isFallback: true }));
   const q = query.toLowerCase();
   return list.filter(a =>
     a.title.toLowerCase().includes(q) ||
     a.creator.toLowerCase().includes(q) ||
     a.genre.toLowerCase().includes(q)
-  );
+  ).map(item => ({ ...item, _isFallback: true }));
+}
+
+const CACHE_TTL = 2.5 * 60 * 1000; // 2.5 minutes
+
+function getCached(cacheMap, key) {
+  if (cacheMap.has(key)) {
+    const cached = cacheMap.get(key);
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.value;
+    }
+    cacheMap.delete(key);
+  }
+  return null;
+}
+
+function setCache(cacheMap, key, value) {
+  cacheMap.set(key, { value, timestamp: Date.now() });
 }
 
 let lastRequestTime = 0;
@@ -110,10 +127,10 @@ export async function throttleJikan() {
   }
 }
 
-export async function fetchWithRetry(url, options, retries = 4, backoff = 1000) {
+export async function fetchWithRetry(url, options, retries = 2, backoff = 500) {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const signal = options.signal 
       ? (options.signal.aborted ? options.signal : AbortSignal.any([options.signal, controller.signal]))
       : controller.signal;
@@ -135,8 +152,9 @@ export async function fetchWithRetry(url, options, retries = 4, backoff = 1000) 
       } else if (i === retries - 1 || (err.name === 'AbortError' && options.signal?.aborted)) {
         throw err;
       }
-      // wait before retrying
-      await new Promise(resolve => setTimeout(resolve, backoff * Math.pow(2, i)));
+      // wait before retrying (500ms, then 1500ms)
+      const delay = i === 0 ? backoff : 1500;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
@@ -159,9 +177,8 @@ export async function searchAnime(query, signal) {
   if (!query || !query.trim()) return [];
   const normalizedQuery = query.trim().toLowerCase();
 
-  if (searchCache.has(normalizedQuery)) {
-    return searchCache.get(normalizedQuery);
-  }
+  const cachedResult = getCached(searchCache, normalizedQuery);
+  if (cachedResult) return cachedResult;
 
   await throttleJikan();
   try {
@@ -169,7 +186,7 @@ export async function searchAnime(query, signal) {
     if (!res.ok) throw new Error(`Jikan search status ${res.status}`);
     const data = await res.json();
     const results = (data.data || []).slice(0, 20).map((item, idx) => normalizeAnime(item, idx));
-    searchCache.set(normalizedQuery, results);
+    setCache(searchCache, normalizedQuery, results);
     return results;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
@@ -180,9 +197,9 @@ export async function searchAnime(query, signal) {
 
 export async function getAnimeDetails(id, signal) {
   const apiId = id.replace('api-anime-', '');
-  if (detailsCache.has(apiId)) {
-    return detailsCache.get(apiId);
-  }
+  
+  const cachedResult = getCached(detailsCache, apiId);
+  if (cachedResult) return cachedResult;
 
   await throttleJikan();
   try {
@@ -190,13 +207,16 @@ export async function getAnimeDetails(id, signal) {
     if (!res.ok) throw new Error(`Jikan detail status ${res.status}`);
     const data = await res.json();
     const result = normalizeAnime(data.data);
-    detailsCache.set(apiId, result);
+    setCache(detailsCache, apiId, result);
     return result;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error('Failed to fetch anime details from Jikan:', err);
     const fallback = getLocalFallbacks().find(a => a.id === id);
-    if (fallback) return fallback;
+    if (fallback) {
+      fallback._isFallback = true;
+      return fallback;
+    }
     throw err;
   }
 }

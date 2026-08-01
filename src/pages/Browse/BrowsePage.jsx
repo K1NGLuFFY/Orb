@@ -411,8 +411,11 @@ const BrowsePage = () => {
             </div>
           )}
 
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>
-            {loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} results`}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <span>{loadingPopular ? 'RETRIEVING POPULAR DOSSIERS...' : `Showing ${filteredProducts.length} results`}</span>
+            {!loadingPopular && filteredProducts.some(p => p._isFallback) && (
+              <span style={{ color: 'var(--text-muted)', textTransform: 'none', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>(Cached Results Included)</span>
+            )}
           </div>
 
           {loadingPopular ? (

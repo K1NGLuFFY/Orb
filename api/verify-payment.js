@@ -110,7 +110,7 @@ export default async function handler(req, res) {
 
     // Compare amounts (Paystack amount is in kobo, so * 100)
     const amountPaidKobo = paystackData.data.amount;
-    const USD_TO_NGN_RATE = 300;
+    const USD_TO_NGN_RATE = 100;
     const expectedKobo = Math.round(expectedTotal * USD_TO_NGN_RATE * 100);
 
     if (amountPaidKobo < expectedKobo) {

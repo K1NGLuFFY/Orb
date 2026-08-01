@@ -60,12 +60,14 @@ const CategoryRow = ({ title, products }) => {
 
   const browseCategory = categoryMap[title] || title;
   const subtitle = categorySubtitles[title] || 'Handpicked dossier collections';
+  const isFallback = products.some(p => p._isFallback);
 
   return (
     <div className="category-row-section">
       <div className="category-row-header">
         <h2 className="category-row-title">
           <span>//</span> {title}
+          {isFallback && <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: '1rem', fontWeight: 'normal', textTransform: 'none' }}>(Cached Results)</span>}
         </h2>
         <Link to={`/browse?category=${browseCategory}`} className="category-row-see-all">
           Explore All {'>'}

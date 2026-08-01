@@ -119,7 +119,20 @@ export async function getPopularComics(signal) {
     return (data.items || []).map((item, idx) => normalizeGoogleComic(item, idx));
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error('Failed to fetch popular comics from Google Books API, falling back to seed data:', err);
+    console.error('Failed to fetch popular comics from Google Books API, falling back to Open Library:', err);
+    return getPopularComicsFromOpenLibrary(signal);
+  }
+}
+
+async function getPopularComicsFromOpenLibrary(signal) {
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=subject:comics&limit=20`, { signal });
+    if (!res.ok) throw new Error(`Open Library status ${res.status}`);
+    const data = await res.json();
+    return (data.docs || []).map((item, idx) => normalizeOpenLibraryComic(item, idx));
+  } catch (err) {
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
+    console.error('Failed to fetch popular comics from Open Library, falling back to seed data:', err);
     return getLocalFallbacks();
   }
 }
@@ -142,7 +155,23 @@ export async function searchComics(query, signal) {
     return results;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
-    console.error(`Failed to search comics from Google Books API for "${query}", falling back to seed data:`, err);
+    console.error(`Failed to search comics from Google Books API for "${query}", falling back to Open Library:`, err);
+    return searchComicsFromOpenLibrary(query, signal);
+  }
+}
+
+async function searchComicsFromOpenLibrary(query, signal) {
+  const normalizedQuery = query.trim().toLowerCase();
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=subject:comics+${encodeURIComponent(query)}&limit=20`, { signal });
+    if (!res.ok) throw new Error(`Open Library search status ${res.status}`);
+    const data = await res.json();
+    const results = (data.docs || []).map((item, idx) => normalizeOpenLibraryComic(item, idx));
+    searchCache.set(normalizedQuery, results);
+    return results;
+  } catch (err) {
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
+    console.error(`Failed to search comics from Open Library for "${query}", falling back to seed data:`, err);
     return getLocalFallbacks(query);
   }
 }
@@ -150,6 +179,10 @@ export async function searchComics(query, signal) {
 export async function getComicDetails(id, signal) {
   if (detailsCache.has(id)) {
     return detailsCache.get(id);
+  }
+
+  if (id.startsWith('api-comic-ol-')) {
+    return getComicDetailsFromOpenLibrary(id, signal);
   }
 
   const googleId = id.replace('api-comic-', '');
@@ -164,6 +197,49 @@ export async function getComicDetails(id, signal) {
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.error(`Failed to fetch comic details from Google Books for "${id}":`, err);
+    const fallback = getLocalFallbacks().find(c => c.id === id);
+    if (fallback) return fallback;
+    throw err;
+  }
+}
+
+async function getComicDetailsFromOpenLibrary(id, signal) {
+  const workId = id.replace('api-comic-ol-', '');
+  try {
+    const res = await fetch(`https://openlibrary.org/works/${workId}.json`, { signal });
+    if (!res.ok) throw new Error(`Open Library detail status ${res.status}`);
+    const data = await res.json();
+    
+    // Normalize Open Library Work object to our format
+    const coverId = data.covers && data.covers.length > 0 ? data.covers.find(c => c > 0) : null;
+    const imageUrl = coverId 
+      ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
+      : unsplashUrls[0];
+    
+    const desc = data.description 
+      ? (typeof data.description === 'object' ? data.description.value : data.description)
+      : 'An open library cataloged graphic novel.';
+
+    const result = {
+      id,
+      title: data.title || 'Untitled Comic',
+      category: 'Comic',
+      creator: 'Open Library Creator',
+      description: desc,
+      imageUrl,
+      genre: data.subjects ? data.subjects.slice(0, 3).join(', ') : 'Comics, Superhero',
+      releaseYear: data.created ? data.created.value.split('-')[0] : 'N/A',
+      language: 'English',
+      price: 19.99,
+      stock: 8,
+      rating: 4.8,
+      createdAt: new Date().toISOString()
+    };
+    detailsCache.set(id, result);
+    return result;
+  } catch (err) {
+    if (err.name === 'AbortError' && signal?.aborted) throw err;
+    console.error(`Failed to fetch comic details from Open Library for "${id}":`, err);
     const fallback = getLocalFallbacks().find(c => c.id === id);
     if (fallback) return fallback;
     throw err;

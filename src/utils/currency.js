@@ -1,4 +1,4 @@
-export const USD_TO_NGN_RATE = 300;
+export const USD_TO_NGN_RATE = 100;
 
 /**
  * Converts a USD amount to Nigerian Naira based on the fixed rate

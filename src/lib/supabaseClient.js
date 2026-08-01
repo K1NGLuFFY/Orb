@@ -16,4 +16,17 @@ if (!supabaseUrl || !supabaseAnon) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnon);
 
-
+// Simple test query run once on app load
+(async () => {
+  try {
+    console.log('[Supabase Connection Check] Initiating test query on "settings" table...');
+    const { data, error } = await supabase.from('settings').select('*');
+    if (error) {
+      console.error('[Supabase Connection Check] Test query failed:', error);
+    } else {
+      console.log('[Supabase Connection Check] Test query succeeded! Data:', data);
+    }
+  } catch (err) {
+    console.error('[Supabase Connection Check] Test query caught error:', err);
+  }
+})();

@@ -85,13 +85,30 @@ function getLocalFallbacks(query = '') {
     createdAt: new Date(new Date('2026-06-05T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()
   }));
 
-  if (!query) return list;
+  if (!query) return list.map(item => ({ ...item, _isFallback: true }));
   const q = query.toLowerCase();
   return list.filter(m =>
     m.title.toLowerCase().includes(q) ||
     m.creator.toLowerCase().includes(q) ||
     m.genre.toLowerCase().includes(q)
-  );
+  ).map(item => ({ ...item, _isFallback: true }));
+}
+
+const CACHE_TTL = 2.5 * 60 * 1000; // 2.5 minutes
+
+function getCached(cacheMap, key) {
+  if (cacheMap.has(key)) {
+    const cached = cacheMap.get(key);
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.value;
+    }
+    cacheMap.delete(key);
+  }
+  return null;
+}
+
+function setCache(cacheMap, key, value) {
+  cacheMap.set(key, { value, timestamp: Date.now() });
 }
 
 export async function getPopularManga(signal) {
@@ -113,9 +130,8 @@ export async function searchManga(query, signal) {
   if (!query || !query.trim()) return [];
   const normalizedQuery = query.trim().toLowerCase();
 
-  if (searchCache.has(normalizedQuery)) {
-    return searchCache.get(normalizedQuery);
-  }
+  const cachedResult = getCached(searchCache, normalizedQuery);
+  if (cachedResult) return cachedResult;
 
   await throttleJikan();
   try {
@@ -124,7 +140,7 @@ export async function searchManga(query, signal) {
     const data = await res.json();
     console.log('[mangaApi] searchManga("' + query + '") — received', (data.data || []).length, 'items');
     const results = (data.data || []).slice(0, 20).map((item, idx) => normalizeManga(item, idx));
-    searchCache.set(normalizedQuery, results);
+    setCache(searchCache, normalizedQuery, results);
     return results;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
@@ -135,9 +151,9 @@ export async function searchManga(query, signal) {
 
 export async function getMangaDetails(id, signal) {
   const apiId = id.replace('api-manga-', '');
-  if (detailsCache.has(apiId)) {
-    return detailsCache.get(apiId);
-  }
+  
+  const cachedResult = getCached(detailsCache, apiId);
+  if (cachedResult) return cachedResult;
 
   await throttleJikan();
   try {
@@ -145,13 +161,16 @@ export async function getMangaDetails(id, signal) {
     if (!res.ok) throw new Error(`Jikan manga detail status ${res.status}`);
     const data = await res.json();
     const result = normalizeManga(data.data);
-    detailsCache.set(apiId, result);
+    setCache(detailsCache, apiId, result);
     return result;
   } catch (err) {
     if (err.name === 'AbortError' && signal?.aborted) throw err;
     console.warn('[mangaApi] Jikan API details unavailable, falling back to local data.');
     const fallback = getLocalFallbacks().find(m => m.id === id);
-    if (fallback) return fallback;
+    if (fallback) {
+      fallback._isFallback = true;
+      return fallback;
+    }
     throw err;
   }
 }

@@ -75,7 +75,7 @@ const CheckoutPage = () => {
     const handler = window.PaystackPop.setup({
       key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
       email: shippingForm.email,
-      amount: Math.round(totalAmount * 300 * 100), // in kobo
+      amount: Math.round(totalAmount * 100 * 100), // in kobo
       currency: 'NGN',
       callback: function(transaction) {
         setCheckoutStep('processing');
