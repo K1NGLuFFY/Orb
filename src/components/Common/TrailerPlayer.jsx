@@ -10,7 +10,10 @@ const TrailerPlayer = ({ trailerId }) => {
     <div style={{ marginTop: '2rem' }}>
       {!isPlaying ? (
         <button
-          onClick={() => setIsPlaying(true)}
+          onClick={() => {
+            console.log('[DEBUG TRAILER] "Watch Trailer" button clicked! Toggling iframe for ID:', trailerId);
+            setIsPlaying(true);
+          }}
           className="btn btn-secondary"
           style={{
             display: 'inline-flex',
@@ -37,6 +40,7 @@ const TrailerPlayer = ({ trailerId }) => {
           background: '#000',
           marginTop: '1rem'
         }}>
+          {console.log('[DEBUG TRAILER] Rendering iframe with src:', `https://www.youtube.com/embed/${trailerId}?autoplay=1`)}
           <iframe
             style={{
               position: 'absolute',

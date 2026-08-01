@@ -55,7 +55,14 @@ function normalizeMovie(item, index = 0) {
   let trailerId = null;
   if (item.videos?.results) {
     const trailer = item.videos.results.find(v => v.site === 'YouTube' && v.type === 'Trailer');
-    if (trailer) trailerId = trailer.key;
+    if (trailer) {
+      trailerId = trailer.key;
+      console.log(`[DEBUG TMDB] Trailer extracted for "${item.title}":`, trailerId);
+    } else {
+      console.log(`[DEBUG TMDB] No YouTube trailer found for "${item.title}".`);
+    }
+  } else {
+    console.log(`[DEBUG TMDB] item.videos.results is undefined for "${item.title || item.original_title}".`);
   }
 
   return {
@@ -77,6 +84,8 @@ function normalizeMovie(item, index = 0) {
 }
 
 function getLocalFallbacks(query = '') {
+  const mockTrailers = ['gCcx85zbxz4', 'zSWdZVtXT7E', 'hEJnMQG9ev8', 's7EdQ4FqbhY', 'YoHD9XEInc0', 'EXeTwQWrcwY', 'm8e-FF8MsqU', '5xH0HfJHsaY', 'ByXuk9QqQkk', '4OiMOHydWfc'];
+
   const list = fallbackMovies.map((m, i) => ({
     id: `api-movie-mock-${i + 1}`,
     title: `${m.title} Blu-ray`,
@@ -90,6 +99,7 @@ function getLocalFallbacks(query = '') {
     price: generatePriceFromId(`api-movie-mock-${i + 1}`, 'Movie'),
     stock: (i * 4) % 15 + 2,
     rating: parseFloat((4.3 + (i * 0.08) % 0.7).toFixed(1)),
+    trailerId: mockTrailers[i] || 'dQw4w9WgXcQ',
     createdAt: new Date(new Date('2026-06-17T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()
   }));
 
