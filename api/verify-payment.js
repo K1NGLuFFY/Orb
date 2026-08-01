@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+import { waitUntil } from '@vercel/functions';
 
 const isApiProduct = (productId) =>
   typeof productId === 'string' && (
@@ -71,7 +73,7 @@ export default async function handler(req, res) {
       // Explicitly reject tampered client prices
       if (Math.abs(realPrice - parseFloat(item.price)) > 0.01) {
         return res.status(400).json({ 
-          error: `Price mismatch for "${item.title}". Client reported $${item.price}, but secure server check expects $${realPrice}. Checkout rejected.` 
+          error: `Price mismatch for "${item.title}". Client reported USD ${item.price}, but secure server check expects USD ${realPrice}. Checkout rejected.` 
         });
       }
 
@@ -108,10 +110,11 @@ export default async function handler(req, res) {
 
     // Compare amounts (Paystack amount is in kobo, so * 100)
     const amountPaidKobo = paystackData.data.amount;
-    const expectedKobo = Math.round(expectedTotal * 100);
+    const USD_TO_NGN_RATE = 1500;
+    const expectedKobo = Math.round(expectedTotal * USD_TO_NGN_RATE * 100);
 
     if (amountPaidKobo < expectedKobo) {
-      return res.status(400).json({ error: `Insufficient payment. Paid ${amountPaidKobo/100}, Expected ${expectedTotal}` });
+      return res.status(400).json({ error: `Insufficient payment. Paid ₦${amountPaidKobo/100}, Expected ₦${expectedKobo/100}` });
     }
 
     // 4. Atomic operations
@@ -151,7 +154,33 @@ export default async function handler(req, res) {
       .delete()
       .eq('user_id', user.id);
 
-    // Return created order
+    // Feature 3: Asynchronous Order Confirmation Email
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+      const emailPromise = resend.emails.send({
+        from: 'Orbit Store <orders@orbit-store.com>', // Assuming domain is verified
+        to: user.email,
+        subject: `Order Confirmation - #${reference}`,
+        html: `
+          <div style="font-family: monospace; padding: 20px;">
+            <h2>Thank you for your order, ${user.user_metadata?.name || 'Customer'}!</h2>
+            <p>Your order (Receipt: ${reference}) has been successfully verified.</p>
+            <h3>Order Summary:</h3>
+            <ul>
+              ${orderItems.map(item => `<li>${item.quantity}x ${item.title} - ₦${(item.price * 1500).toLocaleString()}</li>`).join('')}
+            </ul>
+            <p><strong>Total Paid:</strong> ₦${(expectedTotal * 1500).toLocaleString()}</p>
+            <p>Date: ${new Date().toLocaleString()}</p>
+          </div>
+        `
+      }).catch(err => console.error('Failed to send confirmation email:', err));
+
+      // waitUntil ensures Vercel doesn't kill the function before the email fires
+      waitUntil(emailPromise);
+    }
+
+    // Return created order immediately (does not wait for email)
     return res.status(200).json({ success: true, order: newOrder });
 
   } catch (error) {

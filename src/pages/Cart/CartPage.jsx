@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Common/Navbar';
 import Footer from '../../components/Common/Footer';
 import EmptyState from '../../components/Common/EmptyState';
+import { formatCurrency } from '../../utils/currency';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -152,7 +153,7 @@ const CartPage = () => {
                     {/* Subtotal (Mono font) */}
                     <div className="cart-item-subtotal">
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold', fontSize: '0.95rem', color: 'var(--signal)' }}>
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatCurrency(item.price * item.quantity)}
                       </span>
                     </div>
 
@@ -193,17 +194,17 @@ const CartPage = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Holdings subtotal</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>${subtotal.toFixed(2)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(subtotal)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Simulated tax & post</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>$0.00</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{formatCurrency(0)}</span>
                 </div>
                 <div style={{ height: '1px', backgroundColor: 'var(--hairline)', margin: '0.5rem 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                   <span style={{ fontWeight: 'bold' }}>Total Due</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--signal)' }}>
-                    ${total.toFixed(2)}
+                    {formatCurrency(total)}
                   </span>
                 </div>
               </div>

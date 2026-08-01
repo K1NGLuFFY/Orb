@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
+import { formatCurrency } from '../../utils/currency';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -333,7 +334,7 @@ const SellerDashboard = () => {
                   Total Income
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--signal)' }}>
-                  ${totalEarnings.toFixed(2)}
+                  {formatCurrency(totalEarnings)}
                 </span>
               </div>
             </div>
@@ -493,7 +494,7 @@ const SellerDashboard = () => {
                         </span>
                       </td>
                       <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--signal)' }}>
-                        ${product.price.toFixed(2)}
+                        {formatCurrency(product.price)}
                       </td>
                       <td style={{ padding: '1.25rem 1.5rem', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                         <span style={{ color: product.stock === 0 ? '#FF4D6D' : 'var(--text)' }}>
@@ -564,7 +565,7 @@ const SellerDashboard = () => {
                       {sale.quantity}
                     </td>
                     <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
-                      ${sale.subtotal.toFixed(2)}
+                      {formatCurrency(sale.subtotal)}
                     </td>
                   </tr>
                 ))}
@@ -740,7 +741,7 @@ const SellerDashboard = () => {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Price ($)</label>
+                  <label className="form-label">Price (USD - Converted to NGN for buyers)</label>
                   <input 
                     type="number" 
                     step="0.01"

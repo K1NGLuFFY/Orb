@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { supabase } from '../../lib/supabaseClient';
 import Footer from '../../components/Common/Footer';
+import { formatCurrency } from '../../utils/currency';
 
 /** Returns true if the product id belongs to a live API (no real stock) */
 const isApiProduct = (productId) =>
@@ -74,7 +75,7 @@ const CheckoutPage = () => {
     const handler = window.PaystackPop.setup({
       key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
       email: shippingForm.email,
-      amount: Math.round(totalAmount * 100), // in kobo
+      amount: Math.round(totalAmount * 1500 * 100), // in kobo
       currency: 'NGN',
       callback: function(transaction) {
         setCheckoutStep('processing');
@@ -183,7 +184,7 @@ const CheckoutPage = () => {
                 <div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Amount Due</span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--signal)' }}>
-                    ${totalAmount.toFixed(2)}
+                    {formatCurrency(totalAmount)}
                   </span>
                 </div>
                 <div className="checkout-buttons">
@@ -230,15 +231,15 @@ BUYER:   ${invoice.userName.toUpperCase()}
 ITEMS DETAILED:
 ${invoice.items.map(item => {
   const line = `${item.title.substring(0, 24)} x${item.quantity}`;
-  const priceStr = `$${(item.price * item.quantity).toFixed(2)}`;
+  const priceStr = formatCurrency(item.price * item.quantity);
   const spaces = ' '.repeat(Math.max(2, 48 - line.length - priceStr.length));
   return `${line}${spaces}${priceStr}`;
 }).join('\n')}
 ==================================================
-SUBTOTAL:                               $${invoice.total.toFixed(2)}
-POSTAGE:                                   $0.00
+SUBTOTAL:                               ${formatCurrency(invoice.total)}
+POSTAGE:                                   ${formatCurrency(0)}
 --------------------------------------------------
-TOTAL CHARGED:                          $${invoice.total.toFixed(2)}
+TOTAL CHARGED:                          ${formatCurrency(invoice.total)}
 ==================================================
   * PROCESSED SECURELY VIA PAYSTACK
 ==================================================`}

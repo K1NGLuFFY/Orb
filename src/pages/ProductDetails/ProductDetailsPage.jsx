@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../../components/Common/Navbar';
 import CategoryRow from '../../components/Common/CategoryRow';
+import { formatCurrency } from '../../utils/currency';
 import Footer from '../../components/Common/Footer';
 import { getMovieDetails, getPopularMovies } from '../../services/tmdbApi';
 import { getAnimeDetails, getPopularAnime } from '../../services/jikanApi';

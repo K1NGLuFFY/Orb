@@ -13,6 +13,7 @@ import { getPopularBooks, searchBooks } from '../../services/googleBooksApi';
 import { getPopularManga, searchManga } from '../../services/mangaApi';
 import { getPopularComics, searchComics } from '../../services/comicApi';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
+import { formatCurrency } from '../../utils/currency';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -323,7 +324,7 @@ const BrowsePage = () => {
             <div className="form-group" style={{ marginTop: '1.5rem' }}>
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Max Price</span>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>${priceRange.max}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--signal)' }}>{formatCurrency(priceRange.max)}</span>
               </label>
               <input 
                 type="range" 

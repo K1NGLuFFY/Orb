@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
+import { formatCurrency } from '../../utils/currency';
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -454,7 +455,7 @@ const StaffDashboard = () => {
                           <span style={{ color: spineColor, fontWeight: 'bold' }}>{product.category}</span>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          ${product.price.toFixed(2)}
+                          {formatCurrency(product.price)}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{product.sellerName}</td>
                         <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>

@@ -100,6 +100,23 @@ export const AuthProvider = ({ children }) => {
     console.log(`[Auth Login] Initiating login for email: "${email}"`);
     setAuthError(null);
 
+    // 1. Rate Limit Check
+    try {
+      const rateLimitRes = await fetch('/api/login-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, action: 'check' })
+      });
+      if (rateLimitRes.status === 429) {
+        const data = await rateLimitRes.json();
+        setAuthError(data.message || 'Too many failed login attempts. Please try again later.');
+        clearErrorAfterDelay();
+        return false;
+      }
+    } catch (e) {
+      console.warn('Rate limit check failed, proceeding to login:', e);
+    }
+
     console.log('[Auth Login] Calling supabase.auth.signInWithPassword...');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -107,6 +124,18 @@ export const AuthProvider = ({ children }) => {
 
     if (error) {
       console.error('[Auth Login] Authentication failed with error:', error);
+      
+      // Record failure for rate limiting
+      try {
+        await fetch('/api/login-rate-limit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, action: 'record_failure' })
+        });
+      } catch (e) {
+        console.warn('Failed to record login failure:', e);
+      }
+
       // Map Supabase error messages to user-friendly ones
       if (error.message.toLowerCase().includes('invalid login')) {
         setAuthError("Incorrect email or password. Try again.");
@@ -139,6 +168,17 @@ export const AuthProvider = ({ children }) => {
       setAuthError(`This account has been ${profile.status}. Please contact support.`);
       clearErrorAfterDelay();
       return false;
+    }
+
+    // Reset rate limit on success
+    try {
+      await fetch('/api/login-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, action: 'reset' })
+      });
+    } catch (e) {
+      // Ignore
     }
 
     console.log('[Auth Login] Login sequence completed successfully.');

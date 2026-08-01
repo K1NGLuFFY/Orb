@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
 import { supabase } from '../../lib/supabaseClient';
+import { formatCurrency } from '../../utils/currency';
+
+const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 
 const categoryColors = {
   Anime: 'var(--spine-anime)',
@@ -551,7 +554,7 @@ const AdminDashboard = () => {
                 Total System Volume
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 'bold', color: 'var(--signal)' }}>
-                ${totalSpentAll.toFixed(2)}
+                {formatCurrency(totalSpentAll)}
               </span>
             </div>
           </div>
@@ -939,7 +942,7 @@ const AdminDashboard = () => {
                           <span style={{ color: spineColor, fontWeight: 'bold' }}>{product.category}</span>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          ${product.price.toFixed(2)}
+                          {formatCurrency(product.price)}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
                           {product.stock}
@@ -1070,8 +1073,8 @@ const AdminDashboard = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 {[
                   { label: 'All prices', val: 'All' },
-                  { label: 'Under $15.00', val: 'Under15' },
-                  { label: 'At or Over $15.00', val: 'Over15' }
+                  { label: `Under ${formatCurrency(15)}`, val: 'Under15' },
+                  { label: `At or Over ${formatCurrency(15)}`, val: 'Over15' }
                 ].map(price => (
                   <button
                     key={price.val}
@@ -1112,7 +1115,7 @@ const AdminDashboard = () => {
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Receipt: {order.receiptNumber}</div>
                 </div>
                 <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                  <div>Invoice Total: <strong>${order.total.toFixed(2)}</strong></div>
+                  <div>Invoice Total: <strong>{formatCurrency(order.total)}</strong></div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(order.created_at).toLocaleString()}</div>
                 </div>
               </div>
@@ -1120,7 +1123,7 @@ const AdminDashboard = () => {
                 {order.items.map((item, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0' }}>
                     <span>{item.title} (x{item.quantity})</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>${(item.price * item.quantity).toFixed(2)}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -1132,6 +1135,13 @@ const AdminDashboard = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* ANALYTICS TAB */}
+      {activeTab === 'analytics' && (
+        <React.Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading Analytics Module...</div>}>
+          <AdminAnalytics />
+        </React.Suspense>
       )}
 
       {/* STAFF MANAGEMENT TAB */}
@@ -1454,7 +1464,7 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Price ($)</label>
+                  <label className="form-label">Price (USD - Converted to NGN for buyers)</label>
                   <input 
                     type="number" 
                     step="0.01"

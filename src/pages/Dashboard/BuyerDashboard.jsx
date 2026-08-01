@@ -10,6 +10,7 @@ import { useDeleteAccount } from '../../hooks/useDeleteAccount';
 import { getMovieDetails } from '../../services/tmdbApi';
 import { getAnimeDetails } from '../../services/jikanApi';
 import { getBookDetails } from '../../services/googleBooksApi';
+import { formatCurrency } from '../../utils/currency';
 
 const isApiProduct = (productId) =>
   typeof productId === 'string' && (
@@ -222,7 +223,7 @@ const BuyerDashboard = () => {
                   Simulated Total Spent
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 'bold', color: 'var(--signal)' }}>
-                  ${totalSpent.toFixed(2)}
+                  {formatCurrency(totalSpent)}
                 </span>
               </div>
             </div>
@@ -484,7 +485,7 @@ const BuyerDashboard = () => {
                       Invoice Total
                     </span>
                     <span style={{ fontSize: '1.25rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--signal)' }}>
-                      ${order.total.toFixed(2)}
+                      {formatCurrency(order.total)}
                     </span>
                   </div>
                 </div>
@@ -515,10 +516,10 @@ const BuyerDashboard = () => {
                             {item.quantity}
                           </td>
                           <td style={{ padding: '1rem 0', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                            ${item.price.toFixed(2)}
+                            {formatCurrency(item.price)}
                           </td>
                           <td style={{ padding: '1rem 0', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {formatCurrency(item.price * item.quantity)}
                           </td>
                         </tr>
                       ))}

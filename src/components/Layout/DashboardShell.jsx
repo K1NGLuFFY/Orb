@@ -20,6 +20,7 @@ const DashboardShell = () => {
           { label: 'Manage Users', path: '/dashboard/admin?tab=users' },
           { label: 'Manage Products', path: '/dashboard/admin?tab=products' },
           { label: 'All Orders', path: '/dashboard/admin?tab=orders' },
+          { label: 'Analytics', path: '/dashboard/admin?tab=analytics' },
           { label: 'Staff Roster', path: '/dashboard/admin?tab=staff' },
           { label: 'Announcements', path: '/dashboard/admin?tab=announcements' },
           { label: 'System Settings', path: '/dashboard/admin?tab=settings' }

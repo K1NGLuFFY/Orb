@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { formatCurrency } from '../../utils/currency';
 
 import moviePlaceholder from '../../assets/placeholders/movie.svg';
 import bookPlaceholder from '../../assets/placeholders/book.svg';
@@ -93,7 +94,7 @@ const ProductCard = ({ product, variant = 'standard', overlayBadges = false }) =
         <div className="premium-card-type">{product.category}</div>
         <h3 className="premium-card-title">{product.title}</h3>
         <div className="premium-card-meta">
-          <span className="premium-card-price">${product.price.toFixed(2)}</span>
+          <span className="premium-card-price">{formatCurrency(product.price)}</span>
           <span style={{ color: 'var(--text-muted)' }}>★ {product.rating ? product.rating.toFixed(1) : '0.0'}</span>
         </div>
       </div>
