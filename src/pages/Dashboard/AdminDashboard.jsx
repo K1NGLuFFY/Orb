@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { storageHelper } from '../../utils/storageHelper';
 import { reviewHelper } from '../../utils/reviewHelper';
 import { supabase } from '../../lib/supabaseClient';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency, USD_TO_NGN_RATE } from '../../utils/currency';
 
 const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 
@@ -397,7 +397,7 @@ const AdminDashboard = () => {
       genre: product.genre,
       releaseYear: product.releaseYear,
       language: product.language,
-      price: product.price,
+      price: (product.price * USD_TO_NGN_RATE).toString(),
       stock: product.stock
     });
     setIsProductModalOpen(true);
@@ -424,7 +424,8 @@ const AdminDashboard = () => {
   // Save/Create Product (Single)
   const handleProductEditSubmit = async (e) => {
     e.preventDefault();
-    const parsedPrice = parseFloat(productForm.price);
+    const parsedPriceInput = parseFloat(productForm.price);
+    const parsedPrice = parsedPriceInput / USD_TO_NGN_RATE;
     const parsedStock = parseInt(productForm.stock);
 
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
@@ -1515,13 +1516,14 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Price (USD - Converted to NGN for buyers)</label>
+                  <label className="form-label">Price (₦)</label>
                   <input 
                     type="number" 
                     step="0.01"
                     value={productForm.price}
                     onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                     className="form-input"
+                    placeholder="2500"
                     required
                   />
                 </div>

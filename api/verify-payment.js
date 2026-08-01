@@ -168,9 +168,9 @@ export default async function handler(req, res) {
             <p>Your order (Receipt: ${reference}) has been successfully verified.</p>
             <h3>Order Summary:</h3>
             <ul>
-              ${orderItems.map(item => `<li>${item.quantity}x ${item.title} - ₦${(item.price * 300).toLocaleString()}</li>`).join('')}
+              ${orderItems.map(item => `<li>${item.quantity}x ${item.title} - ₦${(item.price * 100).toLocaleString()}</li>`).join('')}
             </ul>
-            <p><strong>Total Paid:</strong> ₦${(expectedTotal * 300).toLocaleString()}</p>
+            <p><strong>Total Paid:</strong> ₦${(expectedTotal * 100).toLocaleString()}</p>
             <p>Date: ${new Date().toLocaleString()}</p>
           </div>
         `

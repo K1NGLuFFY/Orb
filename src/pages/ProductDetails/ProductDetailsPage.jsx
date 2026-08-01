@@ -463,7 +463,7 @@ const ProductDetailsPage = () => {
                     color: 'var(--signal)',
                     fontWeight: 'bold'
                   }}>
-                    ${product.price.toFixed(2)}
+                    {formatCurrency(product.price)}
                   </span>
                 </div>
 
