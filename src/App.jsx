@@ -14,6 +14,7 @@ import DashboardShell from './components/Layout/DashboardShell';
 // Reusable Loading Screen
 import LoadingScreen from './components/Common/LoadingScreen';
 import AudioWidget from './components/Common/AudioWidget';
+import CookieConsentBanner from './components/Common/CookieConsentBanner';
 
 // Pages (Lazy Loaded)
 const LandingPage = React.lazy(() => import('./pages/Landing/LandingPage'));
@@ -24,6 +25,9 @@ const CheckoutPage = React.lazy(() => import('./pages/Checkout/CheckoutPage'));
 const LoginPage = React.lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = React.lazy(() => import('./pages/Register/RegisterPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFound/NotFoundPage'));
+const AboutUsPage = React.lazy(() => import('./pages/AboutUs/AboutUsPage'));
+const TermsOfServicePage = React.lazy(() => import('./pages/TermsOfService/TermsOfServicePage'));
+const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicy/PrivacyPolicyPage'));
 
 // Dashboards (Lazy Loaded)
 const BuyerDashboard = React.lazy(() => import('./pages/Dashboard/BuyerDashboard'));
@@ -57,6 +61,7 @@ function App() {
           <AudioProvider>
             <Router>
               <AudioWidget />
+              <CookieConsentBanner />
               <Suspense fallback={<LoadingScreen />}>
             <Routes>
               {/* Public Routes */}
@@ -66,6 +71,9 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/cart" element={<CartPage />} />
+              <Route path="/about" element={<AboutUsPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
               {/* Guarded Checkout Flow */}
               <Route 

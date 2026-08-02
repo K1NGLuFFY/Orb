@@ -155,6 +155,8 @@ export default async function handler(req, res) {
       .eq('user_id', user.id);
 
     // Feature 3: Asynchronous Order Confirmation Email
+    // The Resend integration is temporarily disabled.
+    /*
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
       const resend = new Resend(resendApiKey);
@@ -179,6 +181,7 @@ export default async function handler(req, res) {
       // waitUntil ensures Vercel doesn't kill the function before the email fires
       waitUntil(emailPromise);
     }
+    */
 
     // Return created order immediately (does not wait for email)
     return res.status(200).json({ success: true, order: newOrder });

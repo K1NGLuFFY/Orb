@@ -1,12 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 
 const DashboardShell = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingSellerRequests, setPendingSellerRequests] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const fetchPendingCount = async () => {
+      if (currentUser?.role === 'Admin') {
+        const { count, error } = await supabase
+          .from('seller_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending');
+        
+        if (!error && active) {
+          setPendingSellerRequests(count || 0);
+        }
+      }
+    };
+    fetchPendingCount();
+
+    return () => { active = false; };
+  }, [currentUser]);
 
   if (!currentUser) {
     return null;
@@ -18,6 +39,7 @@ const DashboardShell = () => {
         return [
           { label: 'System Overview', path: '/dashboard/admin' },
           { label: 'Manage Users', path: '/dashboard/admin?tab=users' },
+          { label: 'Seller Requests', path: '/dashboard/admin?tab=requests' },
           { label: 'Manage Products', path: '/dashboard/admin?tab=products' },
           { label: 'All Orders', path: '/dashboard/admin?tab=orders' },
           { label: 'Analytics', path: '/dashboard/admin?tab=analytics' },
@@ -139,8 +161,22 @@ const DashboardShell = () => {
                 to={link.path}
                 className={'sidebar-link ' + (isTabActive ? 'active' : 'inactive')}
                 onClick={() => setSidebarOpen(false)}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {link.label === 'Seller Requests' && pendingSellerRequests > 0 && (
+                  <span style={{
+                    backgroundColor: 'var(--signal)',
+                    color: 'var(--signal-text)',
+                    borderRadius: '12px',
+                    padding: '2px 8px',
+                    fontSize: '0.7rem',
+                    fontWeight: 'bold',
+                    marginLeft: '8px'
+                  }}>
+                    {pendingSellerRequests}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -41,6 +41,15 @@ const BuyerDashboard = () => {
   });
   const [feedback, setFeedback] = useState({ text: '', type: '' });
 
+  // Seller Request State
+  const [sellerRequestForm, setSellerRequestForm] = useState({
+    storeName: '',
+    description: ''
+  });
+  const [sellerRequestFeedback, setSellerRequestFeedback] = useState({ text: '', type: '' });
+  const [isRequestPending, setIsRequestPending] = useState(false);
+  const [submittingSellerRequest, setSubmittingSellerRequest] = useState(false);
+
   // Load dashboard data
   useEffect(() => {
     let active = true;
@@ -50,9 +59,22 @@ const BuyerDashboard = () => {
           storageHelper.getProducts(),
           storageHelper.getOrders({ userId: currentUser.id })
         ]);
+
+        // Check if there's a pending seller request
+        const { data: requestData, error: requestError } = await supabase
+          .from('seller_requests')
+          .select('status')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
         if (active) {
           setProducts(dbProducts);
           setOrders(dbOrders);
+          if (requestData && requestData.status === 'pending') {
+            setIsRequestPending(true);
+          }
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
@@ -163,6 +185,65 @@ const BuyerDashboard = () => {
     const success = await deleteAccount();
     if (success) {
       navigate('/');
+    }
+  };
+
+  const handleSellerRequestSubmit = async (e) => {
+    e.preventDefault();
+    setSellerRequestFeedback({ text: '', type: '' });
+    
+    if (!sellerRequestForm.storeName) {
+      setSellerRequestFeedback({ text: 'Store Name is required.', type: 'error' });
+      return;
+    }
+
+    setSubmittingSellerRequest(true);
+
+    try {
+      // 1. Rate Limit Check
+      const rateRes = await fetch('/api/seller-request-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check', userId: currentUser.id })
+      });
+      const rateData = await rateRes.json();
+      
+      if (!rateData.allowed) {
+        setSellerRequestFeedback({ text: rateData.message || 'Rate limit exceeded.', type: 'error' });
+        setSubmittingSellerRequest(false);
+        return;
+      }
+
+      // 2. Insert Request
+      const { error } = await supabase
+        .from('seller_requests')
+        .insert([
+          {
+            user_id: currentUser.id,
+            store_name: sellerRequestForm.storeName,
+            description: sellerRequestForm.description,
+            status: 'pending'
+          }
+        ]);
+
+      if (error) {
+        console.error(error);
+        setSellerRequestFeedback({ text: 'Failed to submit request.', type: 'error' });
+      } else {
+        // 3. Record attempt upon success
+        await fetch('/api/seller-request-rate-limit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'record_request', userId: currentUser.id })
+        });
+        setSellerRequestFeedback({ text: 'Seller request submitted successfully.', type: 'success' });
+        setIsRequestPending(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setSellerRequestFeedback({ text: 'Network error. Please try again.', type: 'error' });
+    } finally {
+      setSubmittingSellerRequest(false);
     }
   };
 
@@ -374,6 +455,70 @@ const BuyerDashboard = () => {
                 </div>
               )}
             </div>
+
+            {/* SELLER REQUEST SECTION */}
+            {currentUser.role === 'Buyer' && (
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: '2rem', marginTop: '2rem' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', textTransform: 'uppercase', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>
+                  Become a Seller
+                </h3>
+                
+                {isRequestPending ? (
+                   <div style={{
+                    padding: '1.5rem',
+                    backgroundColor: 'rgba(255, 106, 61, 0.15)',
+                    border: '1px solid var(--signal)',
+                    color: 'var(--text)',
+                    borderRadius: '4px',
+                    textAlign: 'center'
+                  }}>
+                    Your seller request is pending review by an Administrator.
+                  </div>
+                ) : (
+                  <form onSubmit={handleSellerRequestSubmit}>
+                     {sellerRequestFeedback.text && (
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        backgroundColor: sellerRequestFeedback.type === 'error' ? 'rgba(230, 57, 70, 0.15)' : 'rgba(255, 106, 61, 0.15)',
+                        border: `1px solid ${sellerRequestFeedback.type === 'error' ? '#e63946' : 'var(--signal)'}`,
+                        color: sellerRequestFeedback.type === 'error' ? '#ff6b76' : 'var(--text)',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        marginBottom: '1.25rem',
+                        fontWeight: '500'
+                      }}>
+                        {sellerRequestFeedback.text}
+                      </div>
+                    )}
+                    <div className="form-group">
+                      <label className="form-label">Store Name</label>
+                      <input 
+                        type="text" 
+                        value={sellerRequestForm.storeName}
+                        onChange={(e) => setSellerRequestForm({ ...sellerRequestForm, storeName: e.target.value })}
+                        className="form-input"
+                        placeholder="e.g. My Anime Shop"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Description (What do you plan to sell?)</label>
+                      <textarea 
+                        value={sellerRequestForm.description}
+                        onChange={(e) => setSellerRequestForm({ ...sellerRequestForm, description: e.target.value })}
+                        className="form-input"
+                        placeholder="Brief description..."
+                        rows="3"
+                      />
+                    </div>
+
+                    <button type="submit" disabled={submittingSellerRequest} className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }}>
+                      {submittingSellerRequest ? 'Submitting...' : 'Submit Request'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

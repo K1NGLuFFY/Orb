@@ -49,6 +49,24 @@ export const AuthProvider = ({ children }) => {
     setTimeout(() => setAuthError(null), 4000);
   }, []);
 
+  // Check for OAuth errors in URL on load
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('error=')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const errorDesc = params.get('error_description') || params.get('error');
+      
+      if (errorDesc && errorDesc.toLowerCase().includes('database error saving new user')) {
+        setAuthError("An unverified account with this email already exists. Please log in with your password and verify your email before using Google Sign-In.");
+      } else if (errorDesc) {
+        setAuthError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
+      }
+      
+      clearErrorAfterDelay();
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, [clearErrorAfterDelay]);
+
   // ── Session bootstrap + live auth listener ────────────────────────────────
   useEffect(() => {
     // 1. Check for an existing session on mount
@@ -201,6 +219,23 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
 
+    // 1. Signup Rate Limit Check (IP-based)
+    try {
+      const rateLimitRes = await fetch('/api/signup-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check' })
+      });
+      if (rateLimitRes.status === 429) {
+        const data = await rateLimitRes.json();
+        setAuthError(data.message || 'Too many accounts created from this IP. Please try again later.');
+        clearErrorAfterDelay();
+        return false;
+      }
+    } catch (e) {
+      console.warn('Signup rate limit check failed, proceeding to register:', e);
+    }
+
     console.log('[Auth Register] Calling supabase.auth.signUp with metadata...');
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -221,6 +256,17 @@ export const AuthProvider = ({ children }) => {
       }
       clearErrorAfterDelay();
       return false;
+    }
+
+    // Record successful signup attempt for rate limiting
+    try {
+      await fetch('/api/signup-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'record_signup' })
+      });
+    } catch (e) {
+      console.warn('Failed to record signup attempt:', e);
     }
 
     console.log('[Auth Register] Registration request sent. User ID:', data.user?.id);

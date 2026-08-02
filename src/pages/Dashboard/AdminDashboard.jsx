@@ -35,6 +35,7 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [sellerRequests, setSellerRequests] = useState([]);
 
   // Selection tables
   const [selectedProductIds, setSelectedProductIds] = useState(new Set());
@@ -78,13 +79,14 @@ const AdminDashboard = () => {
   // Reload DB Helper
   const reloadData = async () => {
     try {
-      const [dbUsers, dbProducts, dbOrders, dbAnnouncements, sysSettings, dbReviews] = await Promise.all([
+      const [dbUsers, dbProducts, dbOrders, dbAnnouncements, sysSettings, dbReviews, { data: requestsData }] = await Promise.all([
         storageHelper.getUsers(),
         storageHelper.getProducts(),
         storageHelper.getOrders(),
         storageHelper.getAnnouncements(),
         storageHelper.getSettings().catch(() => ({})),
-        reviewHelper.getAllReviews().catch(() => [])
+        reviewHelper.getAllReviews().catch(() => []),
+        supabase.from('seller_requests').select('*, profiles(name, email)').order('created_at', { ascending: false })
       ]);
 
       setUsers(dbUsers);
@@ -92,6 +94,7 @@ const AdminDashboard = () => {
       setOrders(dbOrders);
       setAnnouncements(dbAnnouncements);
       setReviews(dbReviews);
+      setSellerRequests(requestsData || []);
 
       if (sysSettings) {
         setTickerText(sysSettings.announcement_ticker || '');
@@ -367,6 +370,33 @@ const AdminDashboard = () => {
       await reloadData();
     } catch (err) {
       showFeedback(err.message, 'error');
+    }
+  };
+
+  // Handle Seller Request
+  const handleSellerRequest = async (requestId, userId, status) => {
+    try {
+      // Update request status
+      const { error: updateError } = await supabase
+        .from('seller_requests')
+        .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: currentUser.id })
+        .eq('id', requestId);
+
+      if (updateError) throw updateError;
+
+      // If approved, update user role
+      if (status === 'approved') {
+        const { error: roleError } = await supabase
+          .from('profiles')
+          .update({ role: 'Seller' })
+          .eq('id', userId);
+        if (roleError) throw roleError;
+      }
+
+      showFeedback(`Seller request ${status}.`);
+      await reloadData();
+    } catch (error) {
+      showFeedback(error.message, 'error');
     }
   };
 
@@ -1355,6 +1385,107 @@ const AdminDashboard = () => {
       {/* REVIEWS TAB */}
       {activeTab === 'reviews' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {reviews.length === 0 ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px' }}>
+              No reviews found.
+            </div>
+          ) : (
+            reviews.map(review => (
+              <div key={review.id} style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', padding: '1.5rem', borderRadius: '6px', position: 'relative' }}>
+                <button 
+                  onClick={() => handleDeleteReview(review.id)}
+                  style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#FF4D6D', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}
+                  title="Delete Review"
+                >
+                  Delete Review
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
+                  <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>Product: {review.product_id}</h4>
+                  <span style={{ color: 'var(--signal)', fontWeight: 'bold' }}>★ {review.rating}/10</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                  {review.comment || 'No written comment.'}
+                </p>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  By: {review.profiles?.name || review.user_id} | {new Date(review.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* SELLER REQUESTS TAB */}
+      {activeTab === 'requests' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.25rem', textTransform: 'uppercase', margin: 0, letterSpacing: '0.05em' }}>
+                Seller Upgrade Requests
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                Review and approve buyers requesting seller privileges.
+              </p>
+            </div>
+          </div>
+          {sellerRequests.length === 0 ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px' }}>
+              No seller requests found.
+            </div>
+          ) : (
+            sellerRequests.map(req => (
+              <div key={req.id} style={{ background: 'var(--panel)', border: '1px solid var(--hairline)', padding: '1.5rem', borderRadius: '6px', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>{req.store_name}</h4>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      Requested by: {req.profiles?.name} ({req.profiles?.email})
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{
+                      color: req.status === 'pending' ? '#FFC94D' : req.status === 'approved' ? '#00D9C0' : '#FF4D6D',
+                      fontWeight: 'bold',
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      border: `1px solid ${req.status === 'pending' ? '#FFC94D' : req.status === 'approved' ? '#00D9C0' : '#FF4D6D'}`,
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>
+                      {req.status}
+                    </span>
+                  </div>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+                  {req.description || 'No description provided.'}
+                </p>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '1rem' }}>
+                  Submitted: {new Date(req.created_at).toLocaleString()}
+                </div>
+                
+                {req.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: '1rem', borderTop: '1px solid var(--hairline)', paddingTop: '1rem' }}>
+                    <button 
+                      onClick={() => handleSellerRequest(req.id, req.user_id, 'approved')}
+                      className="btn btn-primary"
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+                    >
+                      Approve Request
+                    </button>
+                    <button 
+                      onClick={() => handleSellerRequest(req.id, req.user_id, 'rejected')}
+                      className="btn btn-secondary"
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', borderColor: '#FF4D6D', color: '#FF4D6D' }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
           {reviews.length === 0 ? (
             <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--panel)', border: '1px dashed var(--hairline)', borderRadius: '6px' }}>
               No reviews found.
