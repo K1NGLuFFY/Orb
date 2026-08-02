@@ -86,7 +86,7 @@ const AdminDashboard = () => {
         storageHelper.getAnnouncements(),
         storageHelper.getSettings().catch(() => ({})),
         reviewHelper.getAllReviews().catch(() => []),
-        supabase.from('seller_requests').select('*, profiles(name, email)').order('created_at', { ascending: false })
+        supabase.from('seller_requests').select('*, profiles(name)').order('created_at', { ascending: false })
       ]);
 
       setUsers(dbUsers);
@@ -1440,7 +1440,7 @@ const AdminDashboard = () => {
                   <div>
                     <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', margin: 0 }}>{req.store_name}</h4>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      Requested by: {req.profiles?.name} ({req.profiles?.email})
+                      Requested by: {req.profiles?.name}
                     </span>
                   </div>
                   <div>
