@@ -86,7 +86,7 @@ const AdminDashboard = () => {
         storageHelper.getAnnouncements(),
         storageHelper.getSettings().catch(() => ({})),
         reviewHelper.getAllReviews().catch(() => []),
-        supabase.from('seller_requests').select('*, profiles(name)').order('created_at', { ascending: false })
+        supabase.from('seller_requests').select('*, profiles!seller_requests_user_id_fkey(name)').order('created_at', { ascending: false })
       ]);
 
       setUsers(dbUsers);
