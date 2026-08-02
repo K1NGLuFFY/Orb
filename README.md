@@ -13,6 +13,9 @@ Orbit is a modern e-commerce platform that allows users to discover, organize, a
 ## Key Features
 * **Unified Catalog:** Browse seeded database items alongside live external API results in one seamless interface.
 * **Role-Based Access Control (RBAC):** Distinct dashboards and permissions for Admins, Staff, Sellers, and Buyers via Supabase RLS.
+* **Seller Approval Workflow:** Fully in-app administrative notification and approval system for promoting user accounts to sellers, eliminating reliance on fragile external email services.
+* **Accountability & Strikes:** Dedicated strike system and instant seller-demotion batch actions giving administrators full control over community integrity.
+* **Dual-Role Navigation:** Seamless hybrid dashboards where Sellers inherently act as Buyers, allowing them to manage inventory and browse personal wishlists without complex state toggles.
 * **Secure Checkout:** Server-side transaction verification with Paystack, atomic stock decrement, and server-side price locking.
 * **Live Wishlist & Cart:** Mix live API products and physical DB items in one persistent shelf.
 * **API Proxy Security:** External API keys are kept entirely out of the client bundle using Vercel serverless proxies.
