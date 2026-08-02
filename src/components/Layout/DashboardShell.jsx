@@ -59,7 +59,10 @@ const DashboardShell = () => {
         return [
           { label: 'Seller Overview', path: '/dashboard/seller' },
           { label: 'My Listings', path: '/dashboard/seller?tab=listings' },
-          { label: 'Store Sales', path: '/dashboard/seller?tab=sales' }
+          { label: 'Store Sales', path: '/dashboard/seller?tab=sales' },
+          { label: 'Buyer Shelf', path: '/dashboard/buyer' },
+          { label: 'My Wishlist', path: '/dashboard/buyer?tab=wishlist' },
+          { label: 'Order History', path: '/dashboard/buyer?tab=orders' }
         ];
       case 'Buyer':
       default:
