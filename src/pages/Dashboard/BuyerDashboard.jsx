@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import ProductCard from '../../components/Common/ProductCard';
 import EmptyState from '../../components/Common/EmptyState';
 import { useDeleteAccount } from '../../hooks/useDeleteAccount';
+import { supabase } from '../../lib/supabaseClient';
 
 import { getMovieDetails } from '../../services/tmdbApi';
 import { getAnimeDetails } from '../../services/jikanApi';
