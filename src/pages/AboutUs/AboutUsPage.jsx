@@ -6,10 +6,10 @@ const AboutUsPage = () => {
   return (
     <div className="page-layout">
       <Navbar />
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', maxWidth: '800px', minHeight: '80vh' }}>
-        <h1 style={{ color: 'var(--text-primary)', marginBottom: '2rem' }}>About Orbit</h1>
+      <div className="container" style={{ padding: '100px 1.5rem', maxWidth: '800px', minHeight: '80vh', margin: '0 auto' }}>
+        <h1 style={{ color: 'var(--text)', marginBottom: '2rem' }}>About Orbit</h1>
         
-        <div style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '1.1rem' }}>
+        <div style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1.1rem' }}>
           <p style={{ marginBottom: '1.5rem' }}>
             Orbit is a specialized marketplace designed for collectors of physical media. Whether you're hunting for rare anime box sets, out-of-print manga, classic literature, graphic novels, or timeless cinema releases, Orbit provides a unified platform to discover and purchase what you love.
           </p>

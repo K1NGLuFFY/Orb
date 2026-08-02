@@ -7,13 +7,13 @@ const PrivacyPolicyPage = () => {
   return (
     <div className="page-layout">
       <Navbar />
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', maxWidth: '800px', minHeight: '80vh' }}>
-        <h1 style={{ color: 'var(--text-primary)', marginBottom: '2rem' }}>Privacy Policy</h1>
+      <div className="container" style={{ padding: '100px 1.5rem', maxWidth: '800px', minHeight: '80vh', margin: '0 auto' }}>
+        <h1 style={{ color: 'var(--text)', marginBottom: '2rem' }}>Privacy Policy</h1>
         
-        <div style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>1. Information We Collect</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>1. Information We Collect</h2>
             <p>We collect information you provide directly to us when you create an account or interact with the Service. This includes:</p>
             <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <li><strong>Profile Information:</strong> Your name, email address, and role.</li>

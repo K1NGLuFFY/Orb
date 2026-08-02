@@ -6,13 +6,13 @@ const TermsOfServicePage = () => {
   return (
     <div className="page-layout">
       <Navbar />
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', maxWidth: '800px', minHeight: '80vh' }}>
-        <h1 style={{ color: 'var(--text-primary)', marginBottom: '2rem' }}>Terms of Service</h1>
+      <div className="container" style={{ padding: '100px 1.5rem', maxWidth: '800px', minHeight: '80vh', margin: '0 auto' }}>
+        <h1 style={{ color: 'var(--text)', marginBottom: '2rem' }}>Terms of Service</h1>
         
-        <div style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ color: 'var(--text-muted)', lineHeight: '1.8', fontSize: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>1. Acceptance of Terms</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>1. Acceptance of Terms</h2>
             <p>
               By accessing and using Orbit ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service. 
               <strong> Note: Orbit is currently a demonstration and portfolio project. These terms reflect intended behavior for a production application but hold no commercial legal binding.</strong>
@@ -20,7 +20,7 @@ const TermsOfServicePage = () => {
           </section>
 
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>2. User Accounts and Responsibilities</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>2. User Accounts and Responsibilities</h2>
             <p>Users on Orbit may be assigned different roles, each with specific privileges:</p>
             <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <li><strong>Buyers:</strong> Can browse, add items to their cart, and simulate purchases.</li>
@@ -33,14 +33,14 @@ const TermsOfServicePage = () => {
           </section>
 
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>3. Purchases and Payments</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>3. Purchases and Payments</h2>
             <p>
               The Service integrates with Paystack for payment processing. <strong>Please note that Orbit is operating in test mode.</strong> No real transactions will occur, and you should only use test card numbers when interacting with the checkout system. We are not liable for any real funds used accidentally.
             </p>
           </section>
 
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>4. Prohibited Conduct</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>4. Prohibited Conduct</h2>
             <p>While using the Service, you agree not to:</p>
             <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <li>Create accounts using automated means or under false pretenses.</li>
@@ -51,7 +51,7 @@ const TermsOfServicePage = () => {
           </section>
 
           <section>
-            <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.3rem' }}>5. Limitation of Liability</h2>
+            <h2 style={{ color: 'var(--text)', marginBottom: '1rem', fontSize: '1.3rem' }}>5. Limitation of Liability</h2>
             <p>
               The Service is provided "as is" and "as available". We make no warranties, expressed or implied, regarding the reliability, availability, or accuracy of the Service. In no event shall Orbit or its creators be liable for any indirect, incidental, or consequential damages arising from your use of the Service.
             </p>
