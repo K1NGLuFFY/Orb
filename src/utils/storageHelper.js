@@ -83,7 +83,7 @@ export const storageHelper = {
   getUsers: async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, name, role, status, deleted_at')
+      .select('id, name, role, status, deleted_at, strikes')
       .is('deleted_at', null)   // hide soft-deleted accounts from listings
       .order('role');
 

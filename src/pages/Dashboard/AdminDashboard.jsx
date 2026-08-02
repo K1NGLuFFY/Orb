@@ -267,13 +267,29 @@ const AdminDashboard = () => {
         await Promise.all(
           Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { deleted_at: new Date().toISOString(), name: 'Deleted User' }))
         );
+      } else if (userBatchAction === 'demote') {
+        const confirmDemote = window.confirm(`Demote ${selectedUserIds.size} user profiles to Buyer?`);
+        if (!confirmDemote) return;
+        await Promise.all(
+          Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { role: 'Buyer' }))
+        );
+      } else if (userBatchAction === 'strike') {
+        const confirmStrike = window.confirm(`Issue a strike to ${selectedUserIds.size} user profiles?`);
+        if (!confirmStrike) return;
+        await Promise.all(
+          Array.from(selectedUserIds).map(id => {
+            const u = users.find(user => user.id === id);
+            const currentStrikes = u?.strikes || 0;
+            return storageHelper.updateUser(id, { strikes: currentStrikes + 1 });
+          })
+        );
       } else {
         const status = userBatchAction === 'lock' ? 'locked' : userBatchAction === 'suspend' ? 'suspended' : 'active';
         await Promise.all(
           Array.from(selectedUserIds).map(id => storageHelper.updateUser(id, { status }))
         );
       }
-      showFeedback(`Successfully updated status for ${selectedUserIds.size} user profiles.`);
+      showFeedback(`Successfully executed batch action on ${selectedUserIds.size} user profiles.`);
       await reloadData();
     } catch (err) {
       showFeedback(err.message, 'error');
@@ -667,6 +683,8 @@ const AdminDashboard = () => {
                   <option value="activate">Activate selected profiles</option>
                   <option value="suspend">Suspend selected profiles</option>
                   <option value="delete">Delete selected profiles</option>
+                  <option value="demote">Demote to Buyer</option>
+                  <option value="strike">Issue Strike</option>
                 </select>
                 <button 
                   onClick={handleExecuteUserBatch}
@@ -705,6 +723,7 @@ const AdminDashboard = () => {
                     <th style={{ padding: '0.75rem 1rem' }}>EMAIL</th>
                     <th style={{ padding: '0.75rem 1rem' }}>NAME</th>
                     <th style={{ padding: '0.75rem 1rem', width: '100px' }}>ROLE</th>
+                    <th style={{ padding: '0.75rem 1rem', width: '100px' }}>STRIKES</th>
                     <th style={{ padding: '0.75rem 1rem', width: '100px' }}>STATUS</th>
                     <th style={{ padding: '0.75rem 1rem', width: '100px', textAlign: 'right' }}>ACTIONS</th>
                   </tr>
@@ -736,6 +755,9 @@ const AdminDashboard = () => {
                           {user.name} {isSelf && '(You)'}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', fontFamily: 'var(--font-mono)' }}>{user.role}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: user.strikes > 0 ? '#FFC94D' : 'inherit', fontWeight: user.strikes > 0 ? 'bold' : 'normal' }}>
+                          {user.strikes || 0}
+                        </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{
                             color: user.status === 'suspended' ? '#FF4D6D' : user.status === 'locked' ? '#FFC94D' : '#00D9C0',
@@ -770,7 +792,7 @@ const AdminDashboard = () => {
                   })}
                   {filteredUsers.length === 0 && (
                     <tr>
-                      <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                         No profiles matched these diagnostic filter logs.
                       </td>
                     </tr>
