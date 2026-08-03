@@ -61,9 +61,15 @@ export const CartProvider = ({ children }) => {
           productId: row.product_id,
           quantity: row.quantity,
           ...(row.products ?? {}),   // title, price, stock, etc.
+          imageUrl: row.products?.image_url || row.products?.imageUrl, // Map DB image_url to React state imageUrl
           id: row.product_id, // keep product id as `id` for downstream compat
         }));
-        setCart(hydrated);
+        
+        // Ensure we don't wipe out React-state-only API items during DB sync
+        setCart(prev => {
+          const apiItems = prev.filter(item => isApiProduct(item.productId));
+          return [...hydrated, ...apiItems];
+        });
       }
 
       if (!wishlistRes.error && wishlistRes.data) {
