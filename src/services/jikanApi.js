@@ -45,14 +45,6 @@ function normalizeAnime(item, index = 0) {
   const price = generatePriceFromId(`api-anime-${malId}`, 'Anime');
   const stock = (malId % 10) + 3;
 
-  // Extract Trailer ID if available
-  let trailerId = null;
-  if (item.trailer?.youtube_id) {
-    trailerId = item.trailer.youtube_id;
-    console.log(`[DEBUG JIKAN] Trailer extracted for "${item.title || item.title_english}":`, trailerId);
-  } else {
-    console.log(`[DEBUG JIKAN] No YouTube trailer found for "${item.title || item.title_english}".`);
-  }
 
   return {
     id: `api-anime-${malId}`,
@@ -67,14 +59,11 @@ function normalizeAnime(item, index = 0) {
     price,
     stock,
     rating,
-    trailerId,
     createdAt: new Date(new Date('2026-06-01T12:00:00Z').getTime() + index * 6 * 3600 * 1000).toISOString()
   };
 }
 
 function getLocalFallbacks(query = '') {
-  const mockAnimeTrailers = ['13nSISwxrY4', 'qig4KOK2R2g', '--IcmZkvL0Q', 'NlJZ-YgAt-c', 'MGRm4IzK1SQ', '27OZc-ku6is', 'faqmNf_fZlE', 'xU47nhruN-Q'];
-
   const list = fallbackAnime.map((item, i) => ({
     id: `api-anime-mock-${i + 1}`,
     title: `${item.title} Blu-ray Box Set`,
@@ -88,7 +77,6 @@ function getLocalFallbacks(query = '') {
     price: generatePriceFromId(`api-anime-mock-${i + 1}`, 'Anime'),
     stock: (i * 5) % 12 + 3,
     rating: parseFloat((4.4 + i * 0.07).toFixed(1)),
-    trailerId: mockAnimeTrailers[i] || 'dQw4w9WgXcQ',
     createdAt: new Date(new Date('2026-06-01T12:00:00Z').getTime() + i * 6 * 3600 * 1000).toISOString()
   }));
 

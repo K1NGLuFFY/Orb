@@ -14,7 +14,7 @@ import { getComicDetails } from '../../services/comicApi';
 import { FALLBACK_IMAGE } from '../../components/Common/ProductCard';
 import { useProductStockSubscription } from '../../hooks/useProductStockSubscription';
 import { supabase } from '../../lib/supabaseClient';
-import TrailerPlayer from '../../components/Common/TrailerPlayer';
+
 import SkeletonCard from '../../components/Common/SkeletonCard';
 import { reviewHelper } from '../../utils/reviewHelper';
 import { storageHelper } from '../../utils/storageHelper';
@@ -512,9 +512,7 @@ const ProductDetailsPage = () => {
                 <p style={{ color: 'var(--text)', lineHeight: '1.6', fontSize: '0.95rem' }}>
                   {product.description}
                 </p>
-                {(product.category === 'Movie' || product.category === 'Anime') && product.trailerId && (
-                  <TrailerPlayer trailerId={product.trailerId} />
-                )}
+
               </div>
 
               {/* Technical Specifications Grid */}
